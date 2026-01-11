@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>MTG Utility App - CCL3</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>MTG Utility App</h1>
+    
+    <div class="anim-logo">
+        <img src="images/calendaricon.svg" alt="App Icon" class="app-icon">
+    </div>
+    
+    <h2 class="anim-logo">Digitize your Deck. Instantly.</h2>
+
+    <div class="social-links">
+        <a href="#" target="_blank" class="social-btn flex-center">
+            <span>Figma Prototype</span>
+        </a>
+
+        <a href="#" class="social-btn flex-center disabled">
+            <span>APK (Coming Soon)</span>
+        </a>
+
+        <a href="https://github.com/YOUR_USERNAME/YOUR_REPO" target="_blank" class="social-btn flex-center">
+            <span>GitHub Repository</span>
+        </a>
+    </div>
+
+    <p class="text-center">
+        A project created by <strong>[Your Name]</strong> and <strong>[Partner Name]</strong>
+        during the Creative Code Lab 3 at UAS St. Pölten.
+    </p>
+
+
+    <div class="section-outline">
+        <h3>App Concept</h3>
+        <p class="text-center">
+            We have chosen <strong>Use Case C (Your Own)</strong>.
+            <br><br>
+            <strong>The Problem:</strong> Magic: The Gathering players often struggle to digitize their physical collections, 
+            check card prices during trades, or look up rules quickly during gameplay. Manual entry is slow and prone to error.
+            <br><br>
+            <strong>The Solution:</strong> A native Android app that leverages computer vision (Camera) to instantly identify 
+            physical cards. It provides an immediate overlay with card data and allows users to add the card to a 
+            local "Deck Builder" inventory with a single tap.
+        </p>
+
+        <h4>Target User:</h4>
+        <ul class="list">
+            <li><strong>Competitive Players:</strong> Who need to digitize decklists for tournament registration.</li>
+            <li><strong>Collectors:</strong> Who want to track the value and quantity of their owned cards.</li>
+            <li><strong>Casual Players:</strong> Who need quick rule lookups during games.</li>
+        </ul>
+
+        <h4>Similar Applications:</h4>
+        <div style="text-align: center;">
+            <a href="#">TCGPlayer</a>, <a href="#">Delver Lens</a>, <a href="#">Dragon Shield Scanner</a>
+        </div>
+    </div>
+
+    <div class="section-outline">
+        <h3>User Flow</h3>
+        <p class="text-center">
+            The primary flow centers on the seamless transition from the physical world (scanning) to the digital library.
+        </p>
+        <img src="images/userflow.png" alt="User Flow Diagram" id="userflow" class="flow-img">
+    </div>
+
+    <div class="section-outline">
+        <h3>Hi-Fi Prototype</h3>
+        <p class="text-center">
+            Below are the high-fidelity screens designed for the core functionality.
+        </p>
+        
+        <div class="designs">
+            <div class="design-card">
+                <img src="images/screen_camera.png" alt="Camera Preview">
+                <p><strong>1. Camera Preview</strong><br>Minimalist interface to focus on the scan.</p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_overlay.png" alt="Result Overlay">
+                <p><strong>2. Result Overlay</strong><br>Popup appears instantly on detection with "Save" action.</p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_history.png" alt="Scan History">
+                <p><strong>3. History</strong><br>Quick access to recently scanned cards.</p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_deck.png" alt="Deck Builder">
+                <p><strong>4. Deck Builder</strong><br>Grid view of the saved digital collection.</p>
+            </div>
+        </div>
+    </div>
+
+
+    </body>
+</html>
