@@ -104,5 +104,58 @@
         </div>
     </div>
 
+    <div class="section-outline">
+        <h3>Usability Test Plan</h3>
+        <p class="text-center">
+            The goal is to evaluate the efficiency of the "Scanner-to-Collection" workflow. As an offline-first utility, the bridge between physical scanning and digital storage must be seamless.
+        </p>
+
+        <details class="collapsible card" style="width: 100%; text-align: left; margin-top: 20px; padding: 15px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px;">
+            <summary style="cursor: pointer; font-weight: bold;">
+                View Heuristic Evaluation (Initial Prototype)
+            </summary>
+            
+            <p><strong>Method:</strong> Nielsen’s 10 Heuristics applied to the Jan 2026 Prototype.</p>
+
+            <h4>Visibility of system status:</h4>
+            <p><strong>Positive:</strong> The "Result Overlay" gives instant feedback on a successful scan.</p>
+            <p><strong>Negative:</strong> It is not always clear if the camera is actively "searching" or idle before a card is detected.</p>
+
+            <h4>Match between system & real world:</h4>
+            <p><strong>Positive:</strong> The use of a "Heart" icon for favorites and "Trash" for delete matches standard mental models.</p>
+            <p><strong>Negative:</strong> The term "History" implies a log, which might confuse users looking for a "Collection."</p>
+
+            <h4>User control and freedom:</h4>
+            <p><strong>Positive:</strong> Users can easily dismiss the scan result overlay to try again.</p>
+            <p><strong>Negative:</strong> There is currently no "Undo" option for accidental deletions.</p>
+
+            <h4>Error prevention:</h4>
+            <p><strong>Negative (Critical):</strong> There is no confirmation dialog when deleting a card. This allows for fast cleanup but risks accidental data loss.</p>
+
+            <h4>Help and documentation:</h4>
+            <p><strong>Negative:</strong> There is no onboarding or tutorial for first-time users.</p>
+        </details>
+
+        <h4>Research Questions & Hypotheses</h4>
+        <ul class="list">
+            <li><strong>Efficiency:</strong> How quickly can a user scan a physical card and see it appear in their digital history?</li>
+            <li><strong>CRUD Intuitiveness:</strong> Is the cycle of scanning (Create), viewing (Read), and favoriting (Update) intuitive without instructions?</li>
+            <li><strong>Error Recovery:</strong> Can users easily recover from accidental scans?</li>
+        </ul>
+
+        <h4>Test Protocol (Tasks)</h4>
+        <div class="card" style="background: #fff; padding: 15px; border: 1px solid #eee; margin-top: 15px; width: 100%; box-sizing: border-box;">
+            <p><strong>Task 1 (Create):</strong> "Use the app to scan this specific card and ensure it is saved." (Metric: Time to completion)</p>
+            <p><strong>Task 2 (Update):</strong> "Find the card you just scanned in the history and mark it as a 'Favorite'." (Metric: Navigation accuracy)</p>
+            <p><strong>Task 3 (Read):</strong> "Go to your Favorites collection and verify the card is there." (Metric: Success/Failure)</p>
+            <p><strong>Task 4 (Delete):</strong> "Remove the card from your Favorites list." (Metric: Discovery of delete function)</p>
+        </div>
+
+        <h4>Planned Visualization</h4>
+        <p class="text-center">
+            We will visualize the results using <strong>Bar Charts</strong> for Time-on-Task and <strong>Line Charts</strong> for the SEQ (Single Ease Question) scores across the 4 tasks.
+        </p>
+    </div>
+
 </body>
 </html>
