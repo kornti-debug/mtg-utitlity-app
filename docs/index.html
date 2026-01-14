@@ -50,7 +50,7 @@
             <br><br>
             <strong>The Solution:</strong> A scanner utility that instantly identifies cards via camera and adds them to a persistent history. Users can manage this list by "favoriting" key cards or deleting unwanted scans.
             <br><br>
-            <strong>Note on Scope:</strong> We previously built a Deck Builder. This project focuses specifically on the <strong>Scanner & Collection Management</strong> workflow to demonstrate a clean offline-first CRUD architecture.
+           <strong>Technical Note:</strong> The app uses a hybrid approach: <strong>Online</strong> for identification (Scryfall-API) and <strong>Offline</strong> (SQLite) for storage and collection management.
         </p>
 
         <h4>Target User:</h4>
@@ -107,7 +107,7 @@
     <div class="section-outline">
         <h3>Usability Test Plan</h3>
         <p class="text-center">
-            The goal is to evaluate the efficiency of the "Scanner-to-Collection" workflow. As an offline-first utility, the bridge between physical scanning and digital storage must be seamless.
+            We will validate the efficiency of the API-based scanning workflow using a summative test with 5 participants.
         </p>
 
         <details class="collapsible card" style="width: 100%; text-align: left; margin-top: 20px; padding: 15px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px;">
@@ -150,6 +150,15 @@
             <p><strong>Task 3 (Read):</strong> "Go to your Favorites collection and verify the card is there." (Metric: Success/Failure)</p>
             <p><strong>Task 4 (Delete):</strong> "Remove the card from your Favorites list." (Metric: Discovery of delete function)</p>
         </div>
+
+        <h4>Methods & Tools</h4>
+        <ul class="list">
+            <li><strong>Data Collection:</strong> <span style="color:#2980b9; font-weight:bold;">Google Forms</span> for logging SEQ/SUS scores and observations.</li>
+            <li><strong>Visualization:</strong> <span style="color:#27ae60; font-weight:bold;">Splunk</span> will be used to analyze the CSV results and visualize task completion trends.</li>
+            <li><strong>Metrics:</strong> Time on Task, Error Rate, SEQ (Single Ease Question), SUS (System Usability Scale).</li>
+        </ul>
+
+        
 
         <h4>Planned Visualization</h4>
         <p class="text-center">
