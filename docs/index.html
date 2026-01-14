@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>MTG Utility App - CCL3</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>MTG Utility App</h1>
+    
+    <div class="anim-logo">
+        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="4" width="14" height="18" rx="2" stroke="#2c3e50" stroke-width="2"/>
+            <path d="M2 12H22" stroke="#e74c3c" stroke-width="2" stroke-dasharray="2 2"/>
+            <circle cx="12" cy="10" r="3" stroke="#2c3e50" stroke-width="2"/>
+            <path d="M8 17H16" stroke="#2c3e50" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+    </div>
+    
+    <h2 class="anim-logo">Scan. Collect. Favorite.</h2>
+
+    <div class="social-links">
+        <a href="https://www.figma.com/design/RJh4lTuR9GXd09g0elMcR7/CCL3-Presentation-Prototype?node-id=0-1&t=a1jirmzvW4Vd32I5-1" target="_blank" class="social-btn flex-center">
+            <span>Figma Prototype</span>
+        </a>
+        <a href="#" class="social-btn flex-center disabled">
+            <span>APK (Coming Soon)</span>
+        </a>
+        <a href="https://github.com/kornti-debug/mtg-utitlity-app" target="_blank" class="social-btn flex-center">
+            <span>GitHub Repository</span>
+        </a>
+    </div>
+
+    <p class="text-center">
+        A project created by <strong>Maximilian Schön</strong> and <strong>Lukas Korntner</strong>
+        during the Creative Code Lab 3 at UAS St. Pölten.
+    </p>
+
+
+    <div class="section-outline">
+        <h3>App Concept</h3>
+        <p class="text-center">
+            We have chosen <strong>Use Case C (Your Own)</strong>.
+            <br><br>
+            <strong>The Problem:</strong> Keeping track of cards encountered during trades or gameplay is difficult. Players need a way to quickly "bookmark" cards they see in the wild without manually typing names.
+            <br><br>
+            <strong>The Solution:</strong> A scanner utility that instantly identifies cards via camera and adds them to a persistent history. Users can manage this list by "favoriting" key cards or deleting unwanted scans.
+            <br><br>
+            <strong>Note on Scope:</strong> We previously built a Deck Builder. This project focuses specifically on the <strong>Scanner & Collection Management</strong> workflow to demonstrate a clean offline-first CRUD architecture.
+        </p>
+
+        <h4>Target User:</h4>
+        <ul class="list">
+            <li><strong>Traders & Collectors:</strong> Who need to quickly log cards they are interested in.</li>
+            <li><strong>Casual Players:</strong> Who want to "bookmark" cards they see opponents play for later research.</li>
+        </ul>
+    </div>
+
+    <div class="section-outline">
+        <h3>User Flow (CRUD)</h3>
+        <p class="text-center">
+            The app implements a strict CRUD cycle using a local database:
+        </p>
+        <ul class="list">
+            <li><strong>Create:</strong> Scan a card via Camera -> Added to DB.</li>
+            <li><strong>Read:</strong> View all scans in the <strong>History Screen</strong>.</li>
+            <li><strong>Update:</strong> Tap the "Heart" icon to mark a card as a <strong>Favorite</strong>.</li>
+            <li><strong>Delete:</strong> Remove a card from the history permanently.</li>
+        </ul>
+        
+        <img src="images/userflow.png" alt="User Flow Diagram" id="userflow" class="flow-img">
+    </div>
+
+    <div class="section-outline">
+        <h3>Hi-Fi Prototype</h3>
+        <p class="text-center">
+            The interface focuses on speed (scanning) and organization (favorites).
+        </p>
+        
+        <div class="designs">
+            <div class="design-card">
+                <img src="images/screen_camera.png" alt="Camera Preview">
+                <p><strong>1. Camera Preview</strong></p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_overlay.png" alt="Result Overlay">
+                <p><strong>2. Scan Result</strong></p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_history.png" alt="Scan History">
+                <p><strong>3. History List</strong></p>
+            </div>
+
+            <div class="design-card">
+                <img src="images/screen_favorites.png" alt="Favorites Screen">
+                <p><strong>4. Favorites</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-outline">
+        <h3>Usability Test Plan</h3>
+        <p class="text-center">
+            The goal is to evaluate the efficiency of the "Scanner-to-Collection" workflow. As an offline-first utility, the bridge between physical scanning and digital storage must be seamless.
+        </p>
+
+        <details class="collapsible card" style="width: 100%; text-align: left; margin-top: 20px; padding: 15px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px;">
+            <summary style="cursor: pointer; font-weight: bold;">
+                View Heuristic Evaluation (Initial Prototype)
+            </summary>
+            
+            <p><strong>Method:</strong> Nielsen’s 10 Heuristics applied to the Jan 2026 Prototype.</p>
+
+            <h4>Visibility of system status:</h4>
+            <p><strong>Positive:</strong> The "Result Overlay" gives instant feedback on a successful scan.</p>
+            <p><strong>Negative:</strong> It is not always clear if the camera is actively "searching" or idle before a card is detected.</p>
+
+            <h4>Match between system & real world:</h4>
+            <p><strong>Positive:</strong> The use of a "Heart" icon for favorites and "Trash" for delete matches standard mental models.</p>
+            <p><strong>Negative:</strong> The term "History" implies a log, which might confuse users looking for a "Collection."</p>
+
+            <h4>User control and freedom:</h4>
+            <p><strong>Positive:</strong> Users can easily dismiss the scan result overlay to try again.</p>
+            <p><strong>Negative:</strong> There is currently no "Undo" option for accidental deletions.</p>
+
+            <h4>Error prevention:</h4>
+            <p><strong>Negative (Critical):</strong> There is no confirmation dialog when deleting a card. This allows for fast cleanup but risks accidental data loss.</p>
+
+            <h4>Help and documentation:</h4>
+            <p><strong>Negative:</strong> There is no onboarding or tutorial for first-time users.</p>
+        </details>
+
+        <h4>Research Questions & Hypotheses</h4>
+        <ul class="list">
+            <li><strong>Efficiency:</strong> How quickly can a user scan a physical card and see it appear in their digital history?</li>
+            <li><strong>CRUD Intuitiveness:</strong> Is the cycle of scanning (Create), viewing (Read), and favoriting (Update) intuitive without instructions?</li>
+            <li><strong>Error Recovery:</strong> Can users easily recover from accidental scans?</li>
+        </ul>
+
+        <h4>Test Protocol (Tasks)</h4>
+        <div class="card" style="background: #fff; padding: 15px; border: 1px solid #eee; margin-top: 15px; width: 100%; box-sizing: border-box;">
+            <p><strong>Task 1 (Create):</strong> "Use the app to scan this specific card and ensure it is saved." (Metric: Time to completion)</p>
+            <p><strong>Task 2 (Update):</strong> "Find the card you just scanned in the history and mark it as a 'Favorite'." (Metric: Navigation accuracy)</p>
+            <p><strong>Task 3 (Read):</strong> "Go to your Favorites collection and verify the card is there." (Metric: Success/Failure)</p>
+            <p><strong>Task 4 (Delete):</strong> "Remove the card from your Favorites list." (Metric: Discovery of delete function)</p>
+        </div>
+
+        <h4>Planned Visualization</h4>
+        <p class="text-center">
+            We will visualize the results using <strong>Bar Charts</strong> for Time-on-Task and <strong>Line Charts</strong> for the SEQ (Single Ease Question) scores across the 4 tasks.
+        </p>
+    </div>
+
+</body>
+</html>
