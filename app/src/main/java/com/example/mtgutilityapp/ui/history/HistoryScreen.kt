@@ -1,247 +1,233 @@
 package com.example.mtgutilityapp.ui.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.mtgutilityapp.domain.model.Card
+import com.example.mtgutilityapp.ui.camera.CustomBottomNavigation
 import com.example.mtgutilityapp.ui.result.ResultOverlay
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     viewModel: HistoryViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToScan: () -> Unit,
+    onNavigateToFavorites: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Scan History") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (uiState.cards.isNotEmpty()) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete All")
-                        }
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Box(
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(horizontal = 24.dp)
         ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                uiState.cards.isEmpty() -> {
-                    EmptyHistoryMessage(modifier = Modifier.align(Alignment.Center))
-                }
-                else -> {
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.cards, key = { it.id }) { card ->
-                            CardHistoryItem(
-                                card = card,
-                                onClick = { viewModel.selectCard(card) },
-                                onDelete = { viewModel.deleteCard(card) }
-                            )
-                        }
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(64.dp))
 
-            // Result overlay
-            uiState.selectedCard?.let { card ->
-                ResultOverlay(
-                    card = card,
-                    onSave = { viewModel.dismissCard() },
-                    onDismiss = { viewModel.dismissCard() }
+            // Header with Back Button
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = null,
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Scan History",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
-        }
-    }
 
-    // Delete all confirmation dialog
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete All Cards?") },
-            text = { Text("This will permanently delete all cards from your history.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteAllCards()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete")
+            Text(
+                text = "${uiState.cards.size} cards scanned",
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 8.dp, start = 48.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // History List
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF38BDF8))
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+            } else if (uiState.cards.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No cards scanned yet", color = Color.White.copy(alpha = 0.4f))
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 100.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(uiState.cards, key = { it.scanId }) { card ->
+                        HistoryCardItem(
+                            card = card,
+                            onClick = { viewModel.selectCard(card) },
+                            onFavoriteToggle = { viewModel.toggleFavorite(card) }
+                        )
+                    }
                 }
             }
+        }
+
+        // Bottom Navigation
+        CustomBottomNavigation(
+            modifier = Modifier.align(Alignment.BottomCenter),
+            onHistoryClick = { /* Already here */ },
+            onFavoritesClick = onNavigateToFavorites,
+            onScanClick = onNavigateToScan,
+            activeScreen = "History"
         )
+
+        // Detail Overlay
+        uiState.selectedCard?.let { card ->
+            ResultOverlay(
+                card = card,
+                onSave = { updatedCard -> 
+                    viewModel.updateCard(updatedCard)
+                },
+                onDismiss = { viewModel.dismissCard() }
+            )
+        }
     }
 }
 
 @Composable
-fun CardHistoryItem(
-    card: Card,
+fun HistoryCardItem(
+    card: Card, 
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onFavoriteToggle: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        color = Color(0xFF1E293B), // Card background
+        shape = RoundedCornerShape(24.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Card thumbnail
-            card.imageUrl?.let { url ->
-                AsyncImage(
-                    model = url,
-                    contentDescription = card.name,
-                    modifier = Modifier
-                        .width(80.dp)
-                        .aspectRatio(0.715f)
-                        .clip(RoundedCornerShape(4.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
+            // Thumbnail
+            AsyncImage(
+                model = card.imageUrl,
+                contentDescription = card.name,
+                modifier = Modifier
+                    .size(width = 60.dp, height = 84.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
 
-            // Card info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Content
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = card.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = card.typeLine,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = card.setName ?: "Unknown Set",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 14.sp
                 )
-                card.setName?.let {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = formatTimestamp(card.scannedAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Scanned ${formatTime(card.scannedAt)}",
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
-            // Delete button
-            IconButton(onClick = { showDeleteDialog = true }) {
+            // Favorite Toggle
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(
+                        if (card.isFavorite) Color(0xFF00E5FF).copy(alpha = 0.2f) 
+                        else Color.Transparent, 
+                        CircleShape
+                    )
+                    .clip(CircleShape)
+                    .clickable { onFavoriteToggle() },
+                contentAlignment = Alignment.Center
+            ) {
                 Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector = if (card.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (card.isFavorite) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
                 )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Mana Cost Tag
+            if (!card.manaCost.isNullOrBlank()) {
+                Surface(
+                    color = Color(0xFF0EA5E9).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0EA5E9).copy(alpha = 0.3f))
+                ) {
+                    Text(
+                        text = card.manaCost ?: "",
+                        color = Color(0xFF38BDF8),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
-
-    // Delete confirmation dialog
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Card?") },
-            text = { Text("Remove \"${card.name}\" from history?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
-@Composable
-fun EmptyHistoryMessage(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "No cards scanned yet",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Scan a card to see it here",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+private fun formatTime(timestamp: Long): String {
+    val now = Calendar.getInstance()
+    val time = Calendar.getInstance().apply { timeInMillis = timestamp }
+    
+    return when {
+        now.get(Calendar.DATE) == time.get(Calendar.DATE) -> {
+            "Today, " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
+        }
+        now.get(Calendar.DATE) - time.get(Calendar.DATE) == 1 -> {
+            "Yesterday, " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))
+        }
+        else -> SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(timestamp))
     }
-}
-
-private fun formatTimestamp(timestamp: Long): String {
-    val sdf = SimpleDateFormat("MMM dd, yyyy - HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
 }

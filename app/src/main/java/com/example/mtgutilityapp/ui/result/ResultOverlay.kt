@@ -1,149 +1,248 @@
 package com.example.mtgutilityapp.ui.result
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.mtgutilityapp.domain.model.Card
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultOverlay(
     card: Card,
-    onSave: () -> Unit,
+    onSave: (Card) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    var isFavorite by remember { mutableStateOf(card.isFavorite) }
+    var selectedSubset by remember { mutableStateOf(card.subset) }
+    var showSubsetMenu by remember { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf(false) }
+    val subsets = listOf("None", "Cheap", "Expensive", "Commander", "Modern")
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.85f),
-            shape = RoundedCornerShape(16.dp)
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
         ) {
-            Column(
+            Surface(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface)
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+                color = Color(0xFF1E293B)
             ) {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Card Details",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                Divider()
-
-                // Content
                 Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Handle bar
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 12.dp, bottom = 12.dp)
+                            .size(width = 40.dp, height = 4.dp)
+                            .background(Color.Gray.copy(alpha = 0.5f), CircleShape)
+                    )
+
+                    // Close button
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                                .size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
                     // Card Image
                     card.imageUrl?.let { url ->
                         AsyncImage(
                             model = url,
                             contentDescription = card.name,
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxWidth(0.65f)
                                 .aspectRatio(0.715f)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Fit
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // Card Name
-                    Text(
-                        text = card.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Mana Cost
-                    card.manaCost?.let {
-                        DetailRow("Mana Cost", it)
-                    }
-
-                    // Type Line
-                    DetailRow("Type", card.typeLine)
-
-                    // Power/Toughness
-                    if (card.power != null && card.toughness != null) {
-                        DetailRow("P/T", "${card.power}/${card.toughness}")
-                    }
-
-                    // Oracle Text
-                    card.oracleText?.let {
-                        Spacer(modifier = Modifier.height(8.dp))
+                    // Card Name + Favorite Icon Toggle
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
-                            text = "Oracle Text",
-                            style = MaterialTheme.typography.titleSmall,
+                            text = card.name,
+                            color = Color.White,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = it,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    if (isFavorite) Color(0xFF00E5FF).copy(alpha = 0.4f) 
+                                    else Color(0xFF00E5FF).copy(alpha = 0.1f), 
+                                    CircleShape
+                                )
+                                .clip(CircleShape)
+                                .clickable { 
+                                    isFavorite = !isFavorite
+                                    onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Toggle Favorite",
+                                tint = Color(0xFF00E5FF),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    
+                    // Set & Mana Cost
+                    Text(
+                        text = "${card.setName ?: "Unknown Set"} • ${card.manaCost ?: ""}",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 16.sp
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (showDetails) {
+                        // Subset Selection
+                        if (isFavorite) {
+                            ExposedDropdownMenuBox(
+                                expanded = showSubsetMenu,
+                                onExpandedChange = { showSubsetMenu = !showSubsetMenu },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedSubset ?: "Assign to Category",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubsetMenu) },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF38BDF8),
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                    ),
+                                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = showSubsetMenu,
+                                    onDismissRequest = { showSubsetMenu = false },
+                                    modifier = Modifier.background(Color(0xFF1E293B))
+                                ) {
+                                    subsets.forEach { subset ->
+                                        DropdownMenuItem(
+                                            text = { Text(subset, color = Color.White) },
+                                            onClick = {
+                                                selectedSubset = if (subset == "None") null else subset
+                                                showSubsetMenu = false
+                                                onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        // Info Boxes (Price & Type)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            InfoBox(
+                                label = "Market Price",
+                                value = "$24.99",
+                                valueColor = Color(0xFF38BDF8),
+                                modifier = Modifier.weight(1f)
+                            )
+                            InfoBox(
+                                label = "Type",
+                                value = card.typeLine.split("—").firstOrNull()?.trim() ?: card.typeLine,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Rarity & Artist
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFF0F172A).copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                DetailLine("Rarity", card.rarity?.replaceFirstChar { it.uppercase() } ?: "Common", Color(0xFFFBBF24))
+                                Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                                DetailLine("Artist", card.artist ?: "Unknown Artist", Color.White)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
 
-                    // Set Name
-                    card.setName?.let {
-                        DetailRow("Set", it)
-                    }
-
-                    // Rarity
-                    card.rarity?.let {
-                        DetailRow("Rarity", it.replaceFirstChar { char -> char.uppercase() })
-                    }
-                }
-
-                // Actions
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
+                    // Toggle Details Button
                     Button(
-                        onClick = onSave,
-                        modifier = Modifier.weight(1f)
+                        onClick = { showDetails = !showDetails },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                        shape = RoundedCornerShape(28.dp)
                     ) {
-                        Text("Save to History")
+                        Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (showDetails) "Hide Details" else "Show Details", color = Color.White)
                     }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
                 }
             }
         }
@@ -151,22 +250,29 @@ fun ResultOverlay(
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
+fun InfoBox(label: String, value: String, valueColor: Color = Color.White, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.height(80.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.5f),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
+            Text(value, color = valueColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+fun DetailLine(label: String, value: String, valueColor: Color) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "$label:",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 14.sp)
+        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
