@@ -6,7 +6,8 @@ import com.example.mtgutilityapp.domain.model.Card
 
 @Entity(tableName = "cards")
 data class CardEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey(autoGenerate = true) val scanId: Long = 0,
+    val id: String, // Scryfall ID
     val name: String,
     val manaCost: String?,
     val typeLine: String,
@@ -16,11 +17,15 @@ data class CardEntity(
     val imageUrl: String?,
     val setName: String?,
     val rarity: String?,
+    val artist: String?,
+    val subset: String? = null,
+    val isFavorite: Boolean = false,
     val scannedAt: Long
 )
 
 fun CardEntity.toDomain(): Card {
     return Card(
+        scanId = scanId,
         id = id,
         name = name,
         manaCost = manaCost,
@@ -31,12 +36,16 @@ fun CardEntity.toDomain(): Card {
         imageUrl = imageUrl,
         setName = setName,
         rarity = rarity,
+        artist = artist,
+        subset = subset,
+        isFavorite = isFavorite,
         scannedAt = scannedAt
     )
 }
 
 fun Card.toEntity(): CardEntity {
     return CardEntity(
+        scanId = scanId,
         id = id,
         name = name,
         manaCost = manaCost,
@@ -47,6 +56,9 @@ fun Card.toEntity(): CardEntity {
         imageUrl = imageUrl,
         setName = setName,
         rarity = rarity,
+        artist = artist,
+        subset = subset,
+        isFavorite = isFavorite,
         scannedAt = scannedAt
     )
 }

@@ -1,7 +1,6 @@
 package com.example.mtgutilityapp.ui.camera
 
 import android.content.Context
-import android.graphics.Rect
 import androidx.camera.core.ImageProxy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,7 +33,6 @@ class CameraViewModel(
     private val isProcessing = AtomicBoolean(false)
 
     fun processImage(imageProxy: ImageProxy, context: Context) {
-        // Stop processing if we're already scanning, processing, or if we have a result selected
         if (_uiState.value.isScanning || _uiState.value.selectedCard != null || isProcessing.get()) {
             imageProxy.close()
             return
@@ -44,12 +42,6 @@ class CameraViewModel(
             imageProxy.close()
             return
         }
-
-        // Apply crop to focus on the name bar (top 15% of the frame)
-        val width = imageProxy.width
-        val height = imageProxy.height
-        val cropRect = Rect(0, 0, width, (height * 0.15).toInt())
-        imageProxy.setCropRect(cropRect)
 
         viewModelScope.launch {
             try {
@@ -83,21 +75,16 @@ class CameraViewModel(
 
             val result = repository.searchCardByName(name)
             result.onSuccess { data ->
-                // Check if we got exactly one result or multiple results
-                if (data.isExactMatch) {
-                    _uiState.value = _uiState.value.copy(
-                        selectedCard = data.card,
-                        isScanning = false,
-                        isOffline = false,
-                        multipleResults = false
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isScanning = false,
-                        error = "Multiple cards found. Please scan more clearly.",
-                        multipleResults = true
-                    )
-                }
+                // Automatically save successful scans to history and capture the scanId
+                val scanId = repository.saveCard(data.card)
+                val cardWithId = data.card.copy(scanId = scanId)
+                
+                _uiState.value = _uiState.value.copy(
+                    selectedCard = cardWithId,
+                    isScanning = false,
+                    isOffline = false,
+                    multipleResults = !data.isExactMatch
+                )
             }.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
                     isScanning = false,
@@ -107,11 +94,10 @@ class CameraViewModel(
         }
     }
 
-    fun saveCard() {
+    fun saveCard(card: Card) {
         viewModelScope.launch {
-            _uiState.value.selectedCard?.let { card ->
-                repository.saveCard(card)
-            }
+            repository.updateCard(card)
+            _uiState.value = _uiState.value.copy(selectedCard = card)
         }
     }
 

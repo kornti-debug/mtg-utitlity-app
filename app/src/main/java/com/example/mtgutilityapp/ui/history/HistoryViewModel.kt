@@ -45,6 +45,19 @@ class HistoryViewModel(
         _uiState.value = _uiState.value.copy(selectedCard = null)
     }
 
+    fun toggleFavorite(card: Card) {
+        viewModelScope.launch {
+            val updatedCard = card.copy(isFavorite = !card.isFavorite)
+            repository.updateCard(updatedCard)
+        }
+    }
+
+    fun updateCard(card: Card) {
+        viewModelScope.launch {
+            repository.updateCard(card)
+        }
+    }
+
     fun deleteCard(card: Card) {
         viewModelScope.launch {
             repository.deleteCard(card)

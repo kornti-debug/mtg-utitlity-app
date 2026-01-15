@@ -13,7 +13,8 @@ data class ScryfallCardDto(
     val toughness: String?,
     @SerializedName("image_uris") val imageUris: ImageUris?,
     @SerializedName("set_name") val setName: String?,
-    val rarity: String?
+    val rarity: String?,
+    val artist: String?
 )
 
 data class ImageUris(
@@ -38,6 +39,7 @@ fun ScryfallCardDto.toDomain(): Card {
         toughness = toughness,
         imageUrl = imageUris?.normal ?: imageUris?.large,
         setName = setName,
-        rarity = rarity
+        rarity = rarity,
+        artist = artist
     )
 }

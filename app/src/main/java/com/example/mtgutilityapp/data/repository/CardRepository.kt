@@ -24,58 +24,25 @@ class CardRepository(
         }
     }
 
-    suspend fun getCardById(cardId: String): Card? {
-        return cardDao.getCardById(cardId)?.toDomain()
+    suspend fun getCardByScanId(scanId: Long): Card? {
+        return cardDao.getCardByScanId(scanId)?.toDomain()
     }
 
     suspend fun searchCardByName(name: String): Result<CardSearchResult> {
         return try {
-            // Use exact name search with quotes for precise matching
-            val response = scryfallApi.searchCards("!\"$name\"")
-
-            when {
-                response.data.isEmpty() -> {
-                    // If exact match fails, try fuzzy search
-                    val fuzzyResponse = scryfallApi.searchCards("name:\"$name\"")
-                    if (fuzzyResponse.data.isEmpty()) {
-                        Result.failure(Exception("Card not found"))
-                    } else if (fuzzyResponse.data.size == 1) {
-                        // Single result from fuzzy search is acceptable
-                        Result.success(CardSearchResult(
-                            card = fuzzyResponse.data.first().toDomain(),
-                            isExactMatch = true
-                        ))
-                    } else {
-                        // Multiple results - ambiguous
-                        Result.success(CardSearchResult(
-                            card = fuzzyResponse.data.first().toDomain(),
-                            isExactMatch = false
-                        ))
-                    }
-                }
-                response.data.size == 1 -> {
-                    // Perfect - exactly one match
-                    Result.success(CardSearchResult(
-                        card = response.data.first().toDomain(),
-                        isExactMatch = true
-                    ))
-                }
-                else -> {
-                    // Multiple exact matches (rare but possible with reprints)
-                    // Take the first one but mark as ambiguous
-                    Result.success(CardSearchResult(
-                        card = response.data.first().toDomain(),
-                        isExactMatch = false
-                    ))
-                }
-            }
+            // Use the fuzzy named endpoint as per the working implementation
+            val response = scryfallApi.getCardNamed(name)
+            Result.success(CardSearchResult(
+                card = response.toDomain(),
+                isExactMatch = true
+            ))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun saveCard(card: Card) {
-        cardDao.insertCard(card.toEntity())
+    suspend fun saveCard(card: Card): Long {
+        return cardDao.insertCard(card.toEntity())
     }
 
     suspend fun updateCard(card: Card) {

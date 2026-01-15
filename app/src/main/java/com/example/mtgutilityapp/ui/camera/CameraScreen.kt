@@ -1,6 +1,7 @@
 package com.example.mtgutilityapp.ui.camera
 
 import android.Manifest
+import android.os.Build.VERSION.SDK_INT
 import android.view.ViewGroup
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -10,6 +11,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,16 +19,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.CropFree
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -34,10 +39,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import coil.ImageLoader
+import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
 import com.example.mtgutilityapp.ui.result.ResultOverlay
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import java.io.File
 import java.util.concurrent.Executors
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -65,7 +78,6 @@ fun CameraScreen(
                 }
             )
 
-            // Scanning Overlay
             ScannerOverlay()
 
             // Header Text
@@ -89,19 +101,34 @@ fun CameraScreen(
                 )
             }
 
-            // Error message
-            uiState.error?.let { error ->
-                Snackbar(
+            // Pondering GIF (Local File)
+            if (uiState.isScanning) {
+                Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 100.dp, start = 16.dp, end = 16.dp),
-                    action = {
-                        TextButton(onClick = { viewModel.clearError() }) {
-                            Text("Dismiss")
-                        }
-                    }
+                        .padding(bottom = 120.dp)
+                        .size(120.dp)
+                        .clip(CircleShape)
                 ) {
-                    Text(error)
+                    val imageLoader = ImageLoader.Builder(context)
+                        .components {
+                            if (SDK_INT >= 28) {
+                                add(ImageDecoderDecoder.Factory())
+                            } else {
+                                add(GifDecoder.Factory())
+                            }
+                        }
+                        .build()
+
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(File("/home/max/AndroidStudioProjects/MTGUtilityApp/app/pondering-pondering-my-orb.gif"))
+                            .build(),
+                        contentDescription = "Pondering Orb",
+                        imageLoader = imageLoader,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                 }
             }
 
@@ -109,9 +136,8 @@ fun CameraScreen(
             uiState.selectedCard?.let { card ->
                 ResultOverlay(
                     card = card,
-                    onSave = {
-                        viewModel.saveCard()
-                        viewModel.dismissCard()
+                    onSave = { updatedCard ->
+                        viewModel.saveCard(updatedCard)
                     },
                     onDismiss = { viewModel.dismissCard() }
                 )
@@ -121,7 +147,9 @@ fun CameraScreen(
             CustomBottomNavigation(
                 modifier = Modifier.align(Alignment.BottomCenter),
                 onHistoryClick = onNavigateToHistory,
-                onFavoritesClick = onNavigateToFavorites
+                onFavoritesClick = onNavigateToFavorites,
+                onScanClick = { /* Already here */ },
+                activeScreen = "Scan"
             )
         } else {
             // Permission not granted
@@ -149,60 +177,41 @@ fun CameraScreen(
 fun CustomBottomNavigation(
     modifier: Modifier = Modifier,
     onHistoryClick: () -> Unit,
-    onFavoritesClick: () -> Unit
+    onFavoritesClick: () -> Unit,
+    onScanClick: () -> Unit,
+    activeScreen: String
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(90.dp),
-        color = Color(0xFF0F172A).copy(alpha = 0.9f),
+            .height(100.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.95f),
         tonalElevation = 8.dp
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             NavigationItem(
                 icon = Icons.Default.History,
                 label = "History",
-                onClick = onHistoryClick
+                onClick = onHistoryClick,
+                isSelected = activeScreen == "History"
             )
 
-            // Scan Button (Center Highlighted)
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color(0xFF0EA5E9).copy(alpha = 0.2f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = { /* Already on Scan */ },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color(0xFF0EA5E9).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.CropFree,
-                            contentDescription = "Scan",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Scan",
-                            color = Color(0xFF38BDF8),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
+            NavigationItem(
+                icon = Icons.Default.CropFree,
+                label = "Scan",
+                onClick = onScanClick,
+                isSelected = activeScreen == "Scan"
+            )
 
             NavigationItem(
-                icon = Icons.Default.Favorite,
+                icon = if (activeScreen == "Favorites") Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 label = "Favorites",
-                onClick = onFavoritesClick
+                onClick = onFavoritesClick,
+                isSelected = activeScreen == "Favorites"
             )
         }
     }
@@ -212,24 +221,33 @@ fun CustomBottomNavigation(
 fun NavigationItem(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isSelected: Boolean
 ) {
+    val tint = if (isSelected) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.6f)
+    val backgroundColor = if (isSelected) Color(0xFF0EA5E9).copy(alpha = 0.2f) else Color.Transparent
+    
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(8.dp)
+        modifier = Modifier
+            .width(80.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp)
     ) {
-        IconButton(onClick = onClick) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(28.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 12.sp
+            color = tint,
+            fontSize = 12.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }
 }
@@ -351,7 +369,21 @@ fun ScannerOverlay() {
             strokeWidth = strokeWidth
         )
 
-        // 3. Center Crosshair
+        // 3. OCR Zone Highlight (Bottom 20%, Left 50% of the card frame)
+        val ocrZoneWidth = frameWidth * 0.50f
+        val ocrZoneHeight = frameHeight * 0.20f
+        val ocrZoneLeft = left
+        val ocrZoneTop = top + frameHeight * 0.80f
+
+        drawRoundRect(
+            color = Color.Yellow.copy(alpha = 0.5f),
+            topLeft = Offset(ocrZoneLeft, ocrZoneTop),
+            size = Size(ocrZoneWidth, ocrZoneHeight),
+            cornerRadius = CornerRadius(8.dp.toPx()),
+            style = Stroke(width = 2.dp.toPx())
+        )
+
+        // 4. Center Crosshair
         val crossSize = 30.dp.toPx()
         val centerX = width / 2
         val centerY = height / 2
@@ -378,55 +410,65 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    
+    // Key to trigger re-binding when lifecycle changes
+    var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Force a re-bind when the screen comes back into focus
+                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                cameraProviderFuture.addListener({
+                    cameraProvider = cameraProviderFuture.get()
+                }, ContextCompat.getMainExecutor(context))
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             cameraExecutor.shutdown()
         }
     }
 
     AndroidView(
         factory = { ctx ->
-            val previewView = PreviewView(ctx).apply {
+            PreviewView(ctx).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
             }
+        },
+        update = { previewView ->
+            val provider = cameraProvider ?: return@AndroidView
+            
+            val preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
 
-            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-            cameraProviderFuture.addListener({
-                val cameraProvider = cameraProviderFuture.get()
-
-                val preview = Preview.Builder().build().also {
-                    it.setSurfaceProvider(previewView.surfaceProvider)
-                }
-
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-                    .also {
-                        it.setAnalyzer(cameraExecutor) { imageProxy ->
-                            onImageCaptured(imageProxy)
-                        }
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor) { imageProxy ->
+                        onImageCaptured(imageProxy)
                     }
-
-                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
-                try {
-                    cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        cameraSelector,
-                        preview,
-                        imageAnalysis
-                    )
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
-            }, ContextCompat.getMainExecutor(ctx))
 
-            previewView
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            try {
+                provider.unbindAll()
+                provider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    preview,
+                    imageAnalysis
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         },
         modifier = Modifier.fillMaxSize()
     )
