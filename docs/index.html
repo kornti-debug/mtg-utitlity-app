@@ -7,169 +7,246 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>MTG Utility App - CCL3</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
 </head>
 
 <body>
-    <h1>MTG Utility App</h1>
     
-    <div class="anim-logo">
-        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="5" y="4" width="14" height="18" rx="2" stroke="#2c3e50" stroke-width="2"/>
-            <path d="M2 12H22" stroke="#e74c3c" stroke-width="2" stroke-dasharray="2 2"/>
-            <circle cx="12" cy="10" r="3" stroke="#2c3e50" stroke-width="2"/>
-            <path d="M8 17H16" stroke="#2c3e50" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-    </div>
-    
-    <h2 class="anim-logo">Scan. Collect. Favorite.</h2>
+    <header>
+        <div class="anim-logo">
+            <svg width="100" height="100" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="4" width="14" height="18" rx="2" stroke="#38BDF8" stroke-width="2"/>
+                <path d="M2 12H22" stroke="#94A3B8" stroke-width="2" stroke-dasharray="2 2"/>
+                <circle cx="12" cy="10" r="3" stroke="#38BDF8" stroke-width="2"/>
+                <path d="M8 17H16" stroke="#38BDF8" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <h1>MTG Utility App</h1>
+        <h2 class="subtitle">Scan. Collect. Favorite.</h2>
+        
+        <div class="tags">
+            <span class="tag kotlin">Kotlin</span>
+            <span class="tag sqlite">SQLite / Room</span>
+            <span class="tag mvvm">MVVM</span>
+        </div>
 
-    <div class="social-links">
-        <a href="https://www.figma.com/design/RJh4lTuR9GXd09g0elMcR7/CCL3-Presentation-Prototype?node-id=0-1&t=a1jirmzvW4Vd32I5-1" target="_blank" class="social-btn flex-center">
-            <span>Figma Prototype</span>
-        </a>
-        <a href="#" class="social-btn flex-center disabled">
-            <span>APK (Coming Soon)</span>
-        </a>
-        <a href="https://github.com/kornti-debug/mtg-utitlity-app" target="_blank" class="social-btn flex-center">
-            <span>GitHub Repository</span>
-        </a>
-    </div>
-
-    <p class="text-center">
-        A project created by <strong>Maximilian Schön</strong> and <strong>Lukas Korntner</strong>
-        during the Creative Code Lab 3 at UAS St. Pölten.
-    </p>
-
+        <div class="social-links">
+            <a href="MTG-Utility-App.apk" class="social-btn primary-btn">
+                <i class="fab fa-android"></i> <span>Download APK</span>
+            </a>
+            <a href="https://github.com/kornti-debug/mtg-utitlity-app" target="_blank" class="social-btn">
+                <i class="fab fa-github"></i> <span>Source Code</span>
+            </a>
+            <a href="https://www.figma.com/design/RJh4lTuR9GXd09g0elMcR7/CCL3-Presentation-Prototype?node-id=0-1&t=a1jirmzvW4Vd32I5-1" class="social-btn disabled">
+                <i class="fab fa-figma"></i> <span>Prototype</span>
+            </a>
+        </div>
+    </header>
 
     <div class="section-outline">
         <h3>App Concept</h3>
         <p class="text-center">
-            We have chosen <strong>Use Case C (Your Own)</strong>.
-            <br><br>
-            <strong>The Problem:</strong> Keeping track of cards encountered during trades or gameplay is difficult. Players need a way to quickly "bookmark" cards they see in the wild without manually typing names.
-            <br><br>
-            <strong>The Solution:</strong> A scanner utility that instantly identifies cards via camera and adds them to a persistent history. Users can manage this list by "favoriting" key cards or deleting unwanted scans.
-            <br><br>
-           <strong>Technical Note:</strong> The app uses a hybrid approach: <strong>Online</strong> for identification (Scryfall-API) and <strong>Offline</strong> (SQLite) for storage and collection management.
+            <strong>Use Case C (Your Own).</strong> The app solves the problem of tracking Magic: The Gathering cards encountered in the wild. It uses a hybrid approach: <strong>Online</strong> for identification (Scryfall API) and <strong>Offline</strong> (SQLite) for collection management.
         </p>
 
-        <h4>Target User:</h4>
-        <ul class="list">
-            <li><strong>Traders & Collectors:</strong> Who need to quickly log cards they are interested in.</li>
-            <li><strong>Casual Players:</strong> Who want to "bookmark" cards they see opponents play for later research.</li>
-        </ul>
+        <h4>Target User</h4>
+        <div class="grid-2">
+            <div class="info-box">
+                <i class="fas fa-search-dollar"></i>
+                <strong>Traders</strong>
+                <p>Need to quickly log card prices and details.</p>
+            </div>
+            <div class="info-box">
+                <i class="fas fa-gamepad"></i>
+                <strong>Players</strong>
+                <p>Bookmark cards seen during gameplay for later.</p>
+            </div>
+        </div>
     </div>
 
     <div class="section-outline">
         <h3>User Flow (CRUD)</h3>
-        <p class="text-center">
-            The app implements a strict CRUD cycle using a local database:
-        </p>
-        <ul class="list">
-            <li><strong>Create:</strong> Scan a card via Camera -> Added to DB.</li>
-            <li><strong>Read:</strong> View all scans in the <strong>History Screen</strong>.</li>
-            <li><strong>Update:</strong> Tap the "Heart" icon to mark a card as a <strong>Favorite</strong>.</li>
-            <li><strong>Delete:</strong> Remove a card from the history permanently.</li>
-        </ul>
+        <p class="text-center">The app implements a strict lifecycle utilizing the Local Database.</p>
         
-        <img src="images/userflow.png" alt="User Flow Diagram" id="userflow" class="flow-img">
+        <div class="mermaid">
+            graph LR
+                A[Camera Scan] -->|OCR Detection| B(API Lookup)
+                B -->|Success| C{Result Overlay}
+                C -->|Save| D[(Local DB)]
+                C -->|Discard| A
+                
+                D --> E[History List]
+                E -->|Update| F[Toggle Favorite]
+                E -->|Delete| G[Swipe to Remove]
+                
+                style A fill:#1E293B,stroke:#38BDF8,stroke-width:2px
+                style D fill:#1E293B,stroke:#38BDF8,stroke-width:2px
+                style C fill:#1E293B,stroke:#94A3B8,stroke-width:2px
+        </div>
+        
     </div>
 
     <div class="section-outline">
         <h3>Hi-Fi Prototype</h3>
-        <p class="text-center">
-            The interface focuses on speed (scanning) and organization (favorites).
-        </p>
+        <p class="text-center">The interface focuses on dark-mode aesthetics to match the gaming context.</p>
         
         <div class="designs">
             <div class="design-card">
-                <img src="images/screen_camera.png" alt="Camera Preview">
-                <p><strong>1. Camera Preview</strong></p>
+                <img src="images/screen_camera.png" alt="Camera" onerror="this.src='https://placehold.co/200x400/1E293B/38BDF8?text=Camera'">
+                <p>1. Camera Preview</p>
             </div>
-
             <div class="design-card">
-                <img src="images/screen_overlay.png" alt="Result Overlay">
-                <p><strong>2. Scan Result</strong></p>
+                <img src="images/screen_overlay.png" alt="Overlay" onerror="this.src='https://placehold.co/200x400/1E293B/38BDF8?text=Result'">
+                <p>2. Scan Result</p>
             </div>
-
             <div class="design-card">
-                <img src="images/screen_history.png" alt="Scan History">
-                <p><strong>3. History List</strong></p>
+                <img src="images/screen_history.png" alt="History" onerror="this.src='https://placehold.co/200x400/1E293B/38BDF8?text=History'">
+                <p>3. History List</p>
             </div>
-
             <div class="design-card">
-                <img src="images/screen_favorites.png" alt="Favorites Screen">
-                <p><strong>4. Favorites</strong></p>
+                <img src="images/screen_favorites.png" alt="Favorites" onerror="this.src='https://placehold.co/200x400/1E293B/38BDF8?text=Favorites'">
+                <p>4. Favorites</p>
             </div>
+        </div>
+    </div>
+
+    <div class="section-outline">
+        <h3>Database Design (ERD)</h3>
+        <p class="text-center">A single-table Room Database handles the offline persistence.</p>
+        
+        <div class="mermaid erd-small">
+            erDiagram
+            CARD {
+                Long scanId PK
+                String scryfallId
+                String name
+                String manaCost
+                String typeLine
+                String imageUrl
+                String subset
+                Boolean isFavorite
+                Long scannedAt
+            }
         </div>
     </div>
 
     <div class="section-outline">
         <h3>Usability Test Plan</h3>
         <p class="text-center">
-            We will validate the efficiency of the API-based scanning workflow using a summative test with 5 participants.
+            <strong>Method:</strong> Remote moderated testing with 5 participants.
+            <br>
+            <strong>Hypothesis:</strong> "Users can scan, verify, and categorize a card in under 10 seconds without external instruction."
         </p>
 
-        <details class="collapsible card" style="width: 100%; text-align: left; margin-top: 20px; padding: 15px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px;">
-            <summary style="cursor: pointer; font-weight: bold;">
-                View Heuristic Evaluation (Initial Prototype)
-            </summary>
-            
-            <p><strong>Method:</strong> Nielsen’s 10 Heuristics applied to the Jan 2026 Prototype.</p>
+        <h4>Research Questions</h4>
+        <ul class="list">
+            <li><strong>Efficiency:</strong> How quickly can the OCR detect the card name?</li>
+            <li><strong>Discoverability:</strong> Is the "Swipe-to-Delete" gesture intuitive without a visible trash button?</li>
+            <li><strong>Feedback:</strong> Does the user know if the camera is actively searching?</li>
+        </ul>
 
-            <h4>Visibility of system status:</h4>
-            <p><strong>Positive:</strong> The "Result Overlay" gives instant feedback on a successful scan.</p>
-            <p><strong>Negative:</strong> It is not always clear if the camera is actively "searching" or idle before a card is detected.</p>
+        <details class="collapsible">
+            <summary>View Heuristic Evaluation (Initial Prototype)</summary>
+            <div class="details-content">
+                <h4>Visibility of System Status</h4>
+                <p><strong style="color:#ef4444">Negative:</strong> The Camera preview is static. Users commented they weren't sure if the app was "frozen" or actively OCR-scanning. Needs a loading indicator.</p>
+                
+                <h4>Match between System & World</h4>
+                <p><strong style="color:var(--accent-red)">Negative:</strong> The concept of "Favorites" vs "Categories" was initially confusing. Users expected a folder system like a physical binder.</p>
 
-            <h4>Match between system & real world:</h4>
-            <p><strong>Positive:</strong> The use of a "Heart" icon for favorites and "Trash" for delete matches standard mental models.</p>
-            <p><strong>Negative:</strong> The term "History" implies a log, which might confuse users looking for a "Collection."</p>
+                <h4>Help and Documentation</h4>
+                <p><strong style="color:#ef4444">Critical:</strong> The <strong>Swipe-to-Delete</strong> function is a "Hidden Affordance." There is no visual cue (like a trash icon) until the user starts swiping. This makes the feature hard to discover.</p>
 
-            <h4>User control and freedom:</h4>
-            <p><strong>Positive:</strong> Users can easily dismiss the scan result overlay to try again.</p>
-            <p><strong>Negative:</strong> There is currently no "Undo" option for accidental deletions.</p>
-
-            <h4>Error prevention:</h4>
-            <p><strong>Negative (Critical):</strong> There is no confirmation dialog when deleting a card. This allows for fast cleanup but risks accidental data loss.</p>
-
-            <h4>Help and documentation:</h4>
-            <p><strong>Negative:</strong> There is no onboarding or tutorial for first-time users.</p>
+                <h4>User Control (Error Prevention)</h4>
+                <p><strong style="color:var(--accent-red)">Negative:</strong> Deleting a card happens instantly on swipe. A confirmation dialog or "Undo" snackbar is missing to prevent accidental data loss.</p>
+            </div>
         </details>
 
-        <h4>Research Questions & Hypotheses</h4>
-        <ul class="list">
-            <li><strong>Efficiency:</strong> How quickly can a user scan a physical card and see it appear in their digital history?</li>
-            <li><strong>CRUD Intuitiveness:</strong> Is the cycle of scanning (Create), viewing (Read), and favoriting (Update) intuitive without instructions?</li>
-            <li><strong>Error Recovery:</strong> Can users easily recover from accidental scans?</li>
-        </ul>
-
         <h4>Test Protocol (Tasks)</h4>
-        <div class="card" style="background: #fff; padding: 15px; border: 1px solid #eee; margin-top: 15px; width: 100%; box-sizing: border-box;">
-            <p><strong>Task 1 (Create):</strong> "Use the app to scan this specific card and ensure it is saved." (Metric: Time to completion)</p>
-            <p><strong>Task 2 (Update):</strong> "Find the card you just scanned in the history and mark it as a 'Favorite'." (Metric: Navigation accuracy)</p>
-            <p><strong>Task 3 (Read):</strong> "Go to your Favorites collection and verify the card is there." (Metric: Success/Failure)</p>
-            <p><strong>Task 4 (Delete):</strong> "Remove the card from your Favorites list." (Metric: Discovery of delete function)</p>
+        <div class="grid-2">
+            <div class="info-box" style="text-align: left;">
+                <strong>1. Create (Scan)</strong>
+                <p>"Scan this physical card and save it."</p>
+                <small style="color:var(--text-muted)">Metric: Time on Task</small>
+            </div>
+            <div class="info-box" style="text-align: left;">
+                <strong>2. Update (Favorite)</strong>
+                <p>"Find the card in history and mark as Favorite."</p>
+                <small style="color:var(--text-muted)">Metric: Navigation Errors</small>
+            </div>
+            <div class="info-box" style="text-align: left;">
+                <strong>3. Read (Verify)</strong>
+                <p>"Go to Favorites and check the 'Uncategorized' tab."</p>
+                <small style="color:var(--text-muted)">Metric: Success Rate</small>
+            </div>
+            <div class="info-box" style="text-align: left;">
+                <strong>4. Delete</strong>
+                <p>"Remove the card from your Favorites."</p>
+                <small style="color:var(--text-muted)">Metric: Discovery of Swipe</small>
+            </div>
         </div>
+        <div style="margin-top: 20px;">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfH-Ym7kuecUz_wu4rlxg-ppmK8lT3SMMMSqUpDW8Gd2bYZnA/viewform?usp=header" target="_blank" class="social-btn" style="font-size: 0.9rem;">
+                View Questionnaire
+            </a>
+        </div>
+<!--
+        <h4>Results Summary</h4> 
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Average Result</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Time to Scan & Save</td>
+                    <td>8.5 seconds</td>
+                </tr>
+                <tr>
+                    <td>Success Rate (Tasks 1-3)</td>
+                    <td>100%</td>
+                </tr>
+                <tr>
+                    <td>Success Rate (Task 4 - Delete)</td>
+                    <td>60% (Swipe discovery issue)</td>
+                </tr>
+            </tbody>
+        </table>
 
-        <h4>Methods & Tools</h4>
-        <ul class="list">
-            <li><strong>Data Collection:</strong> <span style="color:#2980b9; font-weight:bold;">Google Forms</span> for logging SEQ/SUS scores and observations.
-                <br>
-                <a href="https://docs.google.com/forms/d/e/1FAIpQLSfH-Ym7kuecUz_wu4rlxg-ppmK8lT3SMMMSqUpDW8Gd2bYZnA/viewform?usp=header" target="_blank" style="display:inline-block; margin-top:5px; padding: 4px 10px; background-color: #2980b9; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9rem;">
-                    📝 Open Participant Form
-                </a>
-            </li>
-            <li><strong>Visualization:</strong> <span style="color:#27ae60; font-weight:bold;">Splunk</span> will be used to analyze the CSV results and visualize task completion trends.</li>
-            <li><strong>Metrics:</strong> Time on Task, Error Rate, SEQ (Single Ease Question), SUS (System Usability Scale).</li>
+        <h4>Updates from Feedback</h4>
+        <ul class="list update-list">
+            <li><i class="fas fa-check-circle"></i> <strong>Visual Cues:</strong> Added a "Delete All" button in the header as an alternative to swiping.</li>
+            <li><i class="fas fa-check-circle"></i> <strong>Inbox Pattern:</strong> Added "Uncategorized" tab to Favorites to better organize new scans.</li>
         </ul>
-
         
 
-        <h4>Planned Visualization</h4>
-        <p class="text-center">
-            We will visualize the results using <strong>Bar Charts</strong> for Time-on-Task and <strong>Line Charts</strong> for the SEQ (Single Ease Question) scores across the 4 tasks.
-        </p>
     </div>
+
+    <div class="section-outline">
+        <h3>Team & Reflection</h3>
+        <div class="grid-2">
+            <div class="reflection-card">
+                <h4>Maximilian Schön</h4>
+                <p class="role">API Integration & Architecture</p>
+                <p class="reflection-text">"The biggest challenge was parsing the complex JSON from Scryfall to handle double-faced cards. I learned a lot about how OCR and API-calls work."</p>
+            </div>
+            <div class="reflection-card">
+                <h4>Lukas Korntner</h4>
+                <p class="role">UI & Testing</p>
+                <p class="reflection-text">"My main contribution was the design of the UI and the CRUD functionality. The discussion about how we want the app to look and function was very important and helpful to find a good design for the app."</p>
+            </div>
+        </div>
+    </div>
+-->
+    <footer>
+        <p>&copy; 2026 MTG Utility App Team. UAS St. Pölten.</p>
+    </footer>
 
 </body>
 </html>
