@@ -1,6 +1,6 @@
 package com.example.mtgutilityapp.util
 
-import android.graphics.Rect
+import android.graphics.Bitmap
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -8,10 +8,15 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
+data class ScanResult(
+    val cardName: String,
+    val footerText: String // Contains raw text like "NEO • EN • 123"
+)
+
 object TextRecognitionHelper {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    suspend fun recognizeText(imageProxy: ImageProxy): String? = suspendCancellableCoroutine { continuation ->
+    suspend fun recognizeText(imageProxy: ImageProxy): ScanResult? = suspendCancellableCoroutine { continuation ->
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
             val rotation = imageProxy.imageInfo.rotationDegrees
@@ -27,8 +32,8 @@ object TextRecognitionHelper {
 
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
-                    val cardName = extractCardName(visionText.textBlocks, width, height)
-                    continuation.resume(cardName)
+                    val result = extractCardInfo(visionText.textBlocks, width, height)
+                    continuation.resume(result)
                 }
                 .addOnFailureListener {
                     continuation.resume(null)
@@ -42,85 +47,113 @@ object TextRecognitionHelper {
         }
     }
 
-    private fun extractCardName(
+    private fun extractCardInfo(
         textBlocks: List<com.google.mlkit.vision.text.Text.TextBlock>,
         imageWidth: Int,
         imageHeight: Int
-    ): String? {
-        // We assume the user attempts to align the card with the center of the screen/preview.
-        // The standard Magic card is 63mm x 88mm.
-        // Due to preview cropping on different aspect ratios, the "centered" card
-        // usually starts somewhere around 20-30% down the image height and ends around 70-80%.
-        // The Card Name is in the top 10-15% of the card.
+    ): ScanResult? {
+        val lines = textBlocks.flatMap { it.lines }
 
-        // Defines a "Region of Interest" (ROI) where we expect the card name to be.
-        // This allows for detection without a strictly rigid frame, but optimized for the overlay guide.
+        // --- 1. Extract Name (Top Half) ---
+        val roiNameBottom = imageHeight * 0.45
 
-        val roiTop = imageHeight * 0.15 // Start searching 15% down (skips top edge noise)
-        val roiBottom = imageHeight * 0.50 // Name should definitely be in the top half of the image
+        val nameCandidates = lines.filter { line ->
+            val box = line.boundingBox ?: return@filter false
+            box.bottom < roiNameBottom &&
+                    line.text.length > 2 &&
+                    !isManaCost(line.text)
+        }.sortedBy { it.boundingBox?.top ?: Int.MAX_VALUE }
 
-        // Exclude edges
-        val roiLeft = imageWidth * 0.10
-        val roiRight = imageWidth * 0.90
+        val rawName = nameCandidates.firstOrNull()?.text?.trim() ?: return null
+        val cleanedName = cleanCardName(rawName)
 
-        // For right-side exclusion (mana cost), we'll be more specific per line
+        // --- 2. Extract Footer Info (Bottom 15%) ---
+        // Enhanced: Extract more detail and apply preprocessing
+        val roiFooterTop = imageHeight * 0.82
 
-        val candidateTexts = textBlocks
-            .flatMap { it.lines }
-            .filter { line ->
-                val box = line.boundingBox ?: return@filter false
+        val footerLines = lines.filter { line ->
+            val box = line.boundingBox ?: return@filter false
+            box.top > roiFooterTop
+        }
 
-                // Check if line is within our generic ROI
-                val inRoi = box.top > roiTop &&
-                        box.bottom < roiBottom &&
-                        box.left > roiLeft &&
-                        box.right < roiRight
+        // Combine all footer text with preprocessing
+        val footerText = footerLines
+            .joinToString(" ") { it.text }
+            .let { preprocessFooterText(it) }
 
-                if (!inRoi) return@filter false
+        return ScanResult(cleanedName, footerText)
+    }
 
-                // Further filtering:
-                // 1. Text should not be too short
-                // 2. Text should not look like mana cost
-                // 3. To avoid mana symbols on the right, ensure the text starts on the left side of the card area
-                //    (Assuming the text line itself is the name, it usually starts left-aligned)
+    /**
+     * Enhanced footer text preprocessing
+     * Applies common OCR error corrections
+     */
+    private fun preprocessFooterText(text: String): String {
+        var cleaned = text.uppercase()
 
-                line.text.length > 2 && !isManaCost(line.text)
-            }
-            .sortedBy { it.boundingBox?.top ?: Int.MAX_VALUE }
+        // Common OCR substitutions for set codes
+        cleaned = cleaned
+            .replace("0", "O")  // Zero to O
+            .replace("1", "I")  // One to I
+            .replace("5", "S")  // Five to S
+            .replace("8", "B")  // Eight to B
+            .replace("6", "G")  // Six to G
+            .replace("2", "Z")  // Two to Z (rare)
 
-        // Get the first valid line as the card name
-        val cardName = candidateTexts.firstOrNull()?.text?.trim()
+        // Remove common punctuation that interferes
+        cleaned = cleaned.replace("[.,:;]".toRegex(), " ")
 
-        return cardName?.let { cleanCardName(it) }
+        // Normalize whitespace
+        cleaned = cleaned.replace("\\s+".toRegex(), " ").trim()
+
+        return cleaned
     }
 
     private fun isManaCost(text: String): Boolean {
-        // Check if text looks like mana cost symbols
-        // Mana costs are typically: numbers, single letters (W, U, B, R, G), or symbols like {1}, {W}, etc.
-        val manaCostPattern = Regex("^[0-9WUBRGCXYZ{},]+$")
-        return text.matches(manaCostPattern) || text.length <= 2
+        // Enhanced mana cost detection
+        val manaCostPattern = Regex("^[0-9WUBRGCXYZ{},/]+$")
+        return text.matches(manaCostPattern) || text.length <= 1
     }
 
     private fun cleanCardName(name: String): String {
         var cleaned = name
 
-        // Remove trailing mana symbols like "1", "2G", "{W}{U}", etc.
+        // Remove trailing mana symbols
         cleaned = cleaned.replace(Regex("[0-9WUBRGCXYZ{},]+$"), "").trim()
 
-        // Remove common OCR artifacts or "Creature - ..." type lines if we accidentally caught the type line
-        // But type lines are usually lower.
-
-        // Remove text after a comma if it looks like mana cost (e.g. "Name, 3G")
+        // Handle "Name, The Something" split by mana cost or other artifacts
         if (cleaned.contains(",")) {
             val parts = cleaned.split(",")
             if (parts.size >= 2) {
                 val suffix = parts.last().trim()
+                // If suffix is very short or looks like mana, remove it
                 if (suffix.length <= 5 || suffix.matches(Regex("[0-9WUBRGCXYZ{}]+"))) {
                     cleaned = parts.dropLast(1).joinToString(",").trim()
                 }
             }
         }
 
-        return cleaned.trim()
+        // Remove common OCR artifacts
+        cleaned = cleaned
+            .replace("\"", "")  // Stray quotes
+            .replace("'", "'")  // Normalize apostrophes
+            .replace("  ", " ") // Double spaces
+            .trim()
+
+        return cleaned
+    }
+
+    /**
+     * Future enhancement: Crop and enhance footer region before OCR
+     * This would be called before recognizer.process()
+     */
+    private fun enhanceFooterRegion(bitmap: Bitmap): Bitmap {
+        // TODO: Implement image preprocessing
+        // 1. Crop to bottom 15% of image
+        // 2. Convert to grayscale
+        // 3. Apply contrast enhancement (histogram equalization)
+        // 4. Apply sharpening filter
+        // 5. Optional: Denoise
+        return bitmap
     }
 }

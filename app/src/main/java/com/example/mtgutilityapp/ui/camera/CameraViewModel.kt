@@ -20,7 +20,8 @@ data class CameraUiState(
     val selectedCard: Card? = null,
     val error: String? = null,
     val isOffline: Boolean = false,
-    val multipleResults: Boolean = false
+    val matchConfidence: Double = 0.0,
+    val suggestedAlternatives: List<Card> = emptyList()
 )
 
 class CameraViewModel(
@@ -45,16 +46,17 @@ class CameraViewModel(
 
         viewModelScope.launch {
             try {
-                val cardName = TextRecognitionHelper.recognizeText(imageProxy)
+                val scanResult = TextRecognitionHelper.recognizeText(imageProxy)
 
-                if (cardName != null && cardName.isNotBlank()) {
+                if (scanResult != null && scanResult.cardName.isNotBlank()) {
                     _uiState.value = _uiState.value.copy(
                         isScanning = true,
-                        recognizedText = cardName,
+                        recognizedText = scanResult.cardName,
                         error = null,
-                        multipleResults = false
+                        matchConfidence = 0.0,
+                        suggestedAlternatives = emptyList()
                     )
-                    searchCard(cardName, context)
+                    searchCard(scanResult.cardName, scanResult.footerText, context)
                 }
             } finally {
                 isProcessing.set(false)
@@ -62,7 +64,7 @@ class CameraViewModel(
         }
     }
 
-    private fun searchCard(name: String, context: Context) {
+    private fun searchCard(name: String, footerText: String, context: Context) {
         viewModelScope.launch {
             if (!NetworkHelper.isNetworkAvailable(context)) {
                 _uiState.value = _uiState.value.copy(
@@ -73,17 +75,18 @@ class CameraViewModel(
                 return@launch
             }
 
-            val result = repository.searchCardByName(name)
+            val result = repository.searchCard(name, footerText)
+
             result.onSuccess { data ->
-                // Automatically save successful scans to history and capture the scanId
                 val scanId = repository.saveCard(data.card)
                 val cardWithId = data.card.copy(scanId = scanId)
-                
+
                 _uiState.value = _uiState.value.copy(
                     selectedCard = cardWithId,
                     isScanning = false,
                     isOffline = false,
-                    multipleResults = !data.isExactMatch
+                    matchConfidence = data.confidence,
+                    suggestedAlternatives = data.suggestedAlternatives
                 )
             }.onFailure { exception ->
                 _uiState.value = _uiState.value.copy(
@@ -106,7 +109,8 @@ class CameraViewModel(
             selectedCard = null,
             recognizedText = null,
             error = null,
-            multipleResults = false
+            matchConfidence = 0.0,
+            suggestedAlternatives = emptyList()
         )
     }
 

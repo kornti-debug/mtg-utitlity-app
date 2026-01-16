@@ -11,6 +11,14 @@ interface ScryfallApi {
         @Query("q") query: String
     ): ScryfallSearchResponse
 
+    // Used to fetch all prints of a card name
+    @GET("cards/search")
+    suspend fun searchCardVersions(
+        @Query("q") query: String,
+        @Query("unique") unique: String = "prints", // Get every printing
+        @Query("order") order: String = "released" // Newest first
+    ): ScryfallSearchResponse
+
     @GET("cards/named")
     suspend fun getCardNamed(
         @Query("fuzzy") name: String

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,12 +33,17 @@ import com.example.mtgutilityapp.domain.model.Card
 fun ResultOverlay(
     card: Card,
     onSave: (Card) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    matchConfidence: Double = 1.0,
+    suggestedAlternatives: List<Card> = emptyList()
 ) {
     var isFavorite by remember { mutableStateOf(card.isFavorite) }
     var selectedSubset by remember { mutableStateOf(card.subset) }
     var showSubsetMenu by remember { mutableStateOf(false) }
     var showDetails by remember { mutableStateOf(false) }
+    var showAlternatives by remember { mutableStateOf(false) }
+    var currentCard by remember { mutableStateOf(card) }
+
     val subsets = listOf("None", "Cheap", "Expensive", "Commander", "Modern")
 
     Dialog(
@@ -90,11 +96,106 @@ fun ResultOverlay(
                         }
                     }
 
+                    // Confidence Warning Banner (if low confidence)
+                    if (matchConfidence < 0.7 && suggestedAlternatives.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable { showAlternatives = !showAlternatives },
+                            color = Color(0xFFFBBF24).copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFBBF24),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Edition Uncertain (${(matchConfidence * 100).toInt()}% match)",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Tap to view ${suggestedAlternatives.size} alternatives",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Alternative Editions List
+                    if (showAlternatives && suggestedAlternatives.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = Color(0xFF0F172A).copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Other Editions:",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                suggestedAlternatives.take(5).forEach { alt ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .clickable {
+                                                currentCard = alt
+                                                showAlternatives = false
+                                            },
+                                        color = if (alt.id == currentCard.id)
+                                            Color(0xFF38BDF8).copy(alpha = 0.2f)
+                                        else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "${alt.setName} (${alt.setCode})",
+                                                color = Color.White,
+                                                fontSize = 14.sp,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (alt.id == currentCard.id) {
+                                                Text(
+                                                    text = "SELECTED",
+                                                    color = Color(0xFF38BDF8),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Card Image
-                    card.imageUrl?.let { url ->
+                    currentCard.imageUrl?.let { url ->
                         AsyncImage(
                             model = url,
-                            contentDescription = card.name,
+                            contentDescription = currentCard.name,
                             modifier = Modifier
                                 .fillMaxWidth(0.65f)
                                 .aspectRatio(0.715f)
@@ -111,7 +212,7 @@ fun ResultOverlay(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = card.name,
+                            text = currentCard.name,
                             color = Color.White,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
@@ -121,14 +222,14 @@ fun ResultOverlay(
                             modifier = Modifier
                                 .size(36.dp)
                                 .background(
-                                    if (isFavorite) Color(0xFF00E5FF).copy(alpha = 0.4f) 
-                                    else Color(0xFF00E5FF).copy(alpha = 0.1f), 
+                                    if (isFavorite) Color(0xFF00E5FF).copy(alpha = 0.4f)
+                                    else Color(0xFF00E5FF).copy(alpha = 0.1f),
                                     CircleShape
                                 )
                                 .clip(CircleShape)
-                                .clickable { 
+                                .clickable {
                                     isFavorite = !isFavorite
-                                    onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                    onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -140,14 +241,14 @@ fun ResultOverlay(
                             )
                         }
                     }
-                    
+
                     // Set & Mana Cost
                     Text(
-                        text = "${card.setName ?: "Unknown Set"} • ${card.manaCost ?: ""}",
+                        text = "${currentCard.setName ?: "Unknown Set"} (${currentCard.setCode}) • ${currentCard.manaCost ?: ""}",
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 16.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (showDetails) {
@@ -183,7 +284,7 @@ fun ResultOverlay(
                                             onClick = {
                                                 selectedSubset = if (subset == "None") null else subset
                                                 showSubsetMenu = false
-                                                onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                                onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
                                             }
                                         )
                                     }
@@ -205,7 +306,7 @@ fun ResultOverlay(
                             )
                             InfoBox(
                                 label = "Type",
-                                value = card.typeLine.split("—").firstOrNull()?.trim() ?: card.typeLine,
+                                value = currentCard.typeLine.split("—").firstOrNull()?.trim() ?: currentCard.typeLine,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -219,9 +320,11 @@ fun ResultOverlay(
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                DetailLine("Rarity", card.rarity?.replaceFirstChar { it.uppercase() } ?: "Common", Color(0xFFFBBF24))
+                                DetailLine("Rarity", currentCard.rarity?.replaceFirstChar { it.uppercase() } ?: "Common", Color(0xFFFBBF24))
                                 Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
-                                DetailLine("Artist", card.artist ?: "Unknown Artist", Color.White)
+                                DetailLine("Artist", currentCard.artist ?: "Unknown Artist", Color.White)
+                                Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                                DetailLine("Collector #", currentCard.collectorNumber ?: "N/A", Color.White)
                             }
                         }
 
@@ -241,7 +344,7 @@ fun ResultOverlay(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (showDetails) "Hide Details" else "Show Details", color = Color.White)
                     }
-                    
+
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }

@@ -7,7 +7,7 @@ import com.example.mtgutilityapp.domain.model.Card
 @Entity(tableName = "cards")
 data class CardEntity(
     @PrimaryKey(autoGenerate = true) val scanId: Long = 0,
-    val id: String, // Scryfall ID
+    val id: String,
     val name: String,
     val manaCost: String?,
     val typeLine: String,
@@ -16,6 +16,8 @@ data class CardEntity(
     val toughness: String?,
     val imageUrl: String?,
     val setName: String?,
+    val setCode: String?,         // NEW
+    val collectorNumber: String?, // NEW
     val rarity: String?,
     val artist: String?,
     val subset: String? = null,
@@ -35,6 +37,8 @@ fun CardEntity.toDomain(): Card {
         toughness = toughness,
         imageUrl = imageUrl,
         setName = setName,
+        setCode = setCode,
+        collectorNumber = collectorNumber,
         rarity = rarity,
         artist = artist,
         subset = subset,
@@ -55,6 +59,8 @@ fun Card.toEntity(): CardEntity {
         toughness = toughness,
         imageUrl = imageUrl,
         setName = setName,
+        setCode = setCode,
+        collectorNumber = collectorNumber,
         rarity = rarity,
         artist = artist,
         subset = subset,

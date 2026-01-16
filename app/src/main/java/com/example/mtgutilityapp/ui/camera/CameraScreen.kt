@@ -7,6 +7,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -95,7 +97,7 @@ fun CameraScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Card will be scanned automatically",
+                    text = "Scanning automatically...",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )
@@ -124,7 +126,7 @@ fun CameraScreen(
                         model = ImageRequest.Builder(context)
                             .data(File("/home/max/AndroidStudioProjects/MTGUtilityApp/app/pondering-pondering-my-orb.gif"))
                             .build(),
-                        contentDescription = "Pondering Orb",
+                        contentDescription = "Processing",
                         imageLoader = imageLoader,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
@@ -132,14 +134,16 @@ fun CameraScreen(
                 }
             }
 
-            // Result overlay
+            // Result overlay with confidence and alternatives
             uiState.selectedCard?.let { card ->
                 ResultOverlay(
                     card = card,
                     onSave = { updatedCard ->
                         viewModel.saveCard(updatedCard)
                     },
-                    onDismiss = { viewModel.dismissCard() }
+                    onDismiss = { viewModel.dismissCard() },
+                    matchConfidence = uiState.matchConfidence,
+                    suggestedAlternatives = uiState.suggestedAlternatives
                 )
             }
 
@@ -153,20 +157,9 @@ fun CameraScreen(
             )
         } else {
             // Permission not granted
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "Camera permission required",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
-                        Text("Grant Permission")
-                    }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Button(onClick = { cameraPermissionState.launchPermissionRequest() }) {
+                    Text("Grant Camera Permission")
                 }
             }
         }
@@ -226,7 +219,7 @@ fun NavigationItem(
 ) {
     val tint = if (isSelected) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.6f)
     val backgroundColor = if (isSelected) Color(0xFF0EA5E9).copy(alpha = 0.2f) else Color.Transparent
-    
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -257,14 +250,14 @@ fun ScannerOverlay() {
     Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width
         val height = size.height
-        
+
         // MTG card ratio ~0.716
         val frameWidth = width * 0.75f
         val frameHeight = frameWidth * (88f / 63f)
-        
+
         val left = (width - frameWidth) / 2
         val top = (height - frameHeight) / 2
-        
+
         val cornerColor = Color(0xFF38BDF8)
         val strokeWidth = 3.dp.toPx()
         val cornerLength = 40.dp.toPx()
@@ -369,14 +362,14 @@ fun ScannerOverlay() {
             strokeWidth = strokeWidth
         )
 
-        // 3. OCR Zone Highlight (Bottom 20%, Left 50% of the card frame)
-        val ocrZoneWidth = frameWidth * 0.50f
-        val ocrZoneHeight = frameHeight * 0.20f
-        val ocrZoneLeft = left
-        val ocrZoneTop = top + frameHeight * 0.80f
+        // 3. OCR Zone Highlight (Bottom 20% for Set/Number)
+        val ocrZoneWidth = frameWidth * 0.90f
+        val ocrZoneHeight = frameHeight * 0.15f
+        val ocrZoneLeft = left + (frameWidth * 0.05f)
+        val ocrZoneTop = top + frameHeight * 0.82f
 
         drawRoundRect(
-            color = Color.Yellow.copy(alpha = 0.5f),
+            color = Color.Yellow.copy(alpha = 0.3f),
             topLeft = Offset(ocrZoneLeft, ocrZoneTop),
             size = Size(ocrZoneWidth, ocrZoneHeight),
             cornerRadius = CornerRadius(8.dp.toPx()),
@@ -387,7 +380,7 @@ fun ScannerOverlay() {
         val crossSize = 30.dp.toPx()
         val centerX = width / 2
         val centerY = height / 2
-        
+
         drawLine(
             color = cornerColor.copy(alpha = 0.5f),
             start = Offset(centerX - crossSize / 2, centerY),
@@ -410,14 +403,11 @@ fun CameraPreview(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
-    
-    // Key to trigger re-binding when lifecycle changes
     var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                // Force a re-bind when the screen comes back into focus
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
                 cameraProviderFuture.addListener({
                     cameraProvider = cameraProviderFuture.get()
@@ -442,13 +432,23 @@ fun CameraPreview(
         },
         update = { previewView ->
             val provider = cameraProvider ?: return@AndroidView
-            
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
+            // Request higher resolution for better OCR
+            val resolutionSelector = ResolutionSelector.Builder()
+                .setResolutionStrategy(
+                    ResolutionStrategy(
+                        android.util.Size(1280, 720),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                    )
+                )
+                .build()
+
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setResolutionSelector(resolutionSelector)
                 .build()
                 .also {
                     it.setAnalyzer(cameraExecutor) { imageProxy ->
