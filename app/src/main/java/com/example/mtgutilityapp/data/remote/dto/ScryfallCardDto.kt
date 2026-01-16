@@ -13,10 +13,26 @@ data class ScryfallCardDto(
     val toughness: String?,
     @SerializedName("image_uris") val imageUris: ImageUris?,
     @SerializedName("set_name") val setName: String?,
-    @SerializedName("set") val setCode: String?,            // NEW
-    @SerializedName("collector_number") val collectorNumber: String?, // NEW
+    @SerializedName("set") val setCode: String?,
+    @SerializedName("collector_number") val collectorNumber: String?,
     val rarity: String?,
-    val artist: String?
+    val artist: String?,
+    // NEW FIELDS
+    val prices: Prices?,
+    @SerializedName("purchase_uris") val purchaseUris: PurchaseUris?,
+    val finishes: List<String>?
+)
+
+data class Prices(
+    val usd: String?,
+    val eur: String?, // Market price in EUR
+    val tix: String?
+)
+
+data class PurchaseUris(
+    val tcgplayer: String?,
+    val cardmarket: String?, // Link to Cardmarket
+    val cardhoarder: String?
 )
 
 data class ImageUris(
@@ -44,6 +60,10 @@ fun ScryfallCardDto.toDomain(): Card {
         setCode = setCode,
         collectorNumber = collectorNumber,
         rarity = rarity,
-        artist = artist
+        artist = artist,
+        // Map new fields
+        priceEur = prices?.eur,
+        cardmarketUrl = purchaseUris?.cardmarket,
+        finishes = finishes ?: emptyList()
     )
 }

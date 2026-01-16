@@ -1,5 +1,7 @@
 package com.example.mtgutilityapp.ui.result
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,13 +25,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.mtgutilityapp.domain.model.Card
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,16 +44,16 @@ fun ResultOverlay(
     onDismiss: () -> Unit,
     matchConfidence: Double = 1.0,
     suggestedAlternatives: List<Card> = emptyList(),
-    availableSubsets: List<String> = emptyList() // Added parameter for dynamic lists
+    availableSubsets: List<String> = emptyList()
 ) {
     var isFavorite by remember { mutableStateOf(card.isFavorite) }
     var selectedSubset by remember { mutableStateOf(card.subset) }
     var showSubsetMenu by remember { mutableStateOf(false) }
-    var showDetails by remember { mutableStateOf(false) }
+    var showDetails by remember { mutableStateOf(true) }
     var showAlternatives by remember { mutableStateOf(false) }
     var currentCard by remember { mutableStateOf(card) }
 
-    // dynamic list: always allow "Uncategorized" + whatever exists in DB
+    val context = LocalContext.current
     val displaySubsets = listOf("Uncategorized") + availableSubsets
 
     Dialog(
@@ -100,7 +106,7 @@ fun ResultOverlay(
                         }
                     }
 
-                    // Confidence Warning Banner (if low confidence)
+                    // Confidence Warning
                     if (matchConfidence < 0.7 && suggestedAlternatives.isNotEmpty()) {
                         Surface(
                             modifier = Modifier
@@ -138,7 +144,7 @@ fun ResultOverlay(
                         }
                     }
 
-                    // Alternative Editions List
+                    // Alternatives List
                     if (showAlternatives && suggestedAlternatives.isNotEmpty()) {
                         Surface(
                             modifier = Modifier
@@ -209,7 +215,7 @@ fun ResultOverlay(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // Card Name + Favorite Icon Toggle
+                    // Card Name + Favorite
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
@@ -231,12 +237,10 @@ fun ResultOverlay(
                                     CircleShape
                                 )
                                 .clip(CircleShape)
-                                // FIX: Use pointerInput with key to prevent stuck state
                                 .pointerInput(isFavorite) {
                                     detectTapGestures(
                                         onTap = {
                                             isFavorite = !isFavorite
-                                            // If unfavoriting, clear subset immediately
                                             if (!isFavorite) {
                                                 selectedSubset = null
                                             }
@@ -255,16 +259,16 @@ fun ResultOverlay(
                         }
                     }
 
-                    // Set & Mana Cost
+                    // Set Info
                     Text(
-                        text = "${currentCard.setName ?: "Unknown Set"} (${currentCard.setCode}) • ${currentCard.manaCost ?: ""}",
+                        text = "${currentCard.setName ?: "Unknown Set"} (${currentCard.setCode?.uppercase() ?: ""}) • ${currentCard.collectorNumber}",
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 16.sp
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Subset Dropdown (Only visible if Favorited)
+                    // Subset Dropdown
                     if (isFavorite) {
                         ExposedDropdownMenuBox(
                             expanded = showSubsetMenu,
@@ -294,7 +298,6 @@ fun ResultOverlay(
                                     DropdownMenuItem(
                                         text = { Text(subset, color = Color.White) },
                                         onClick = {
-                                            // "Uncategorized" maps to null
                                             selectedSubset = if (subset == "Uncategorized") null else subset
                                             showSubsetMenu = false
                                             onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
@@ -307,38 +310,106 @@ fun ResultOverlay(
                     }
 
                     if (showDetails) {
-                        // Info Boxes (Price & Type)
+                        // --- Market Price Display ---
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            color = Color(0xFF38BDF8).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Market Price (EUR)",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                    Text(
+                                        text = if (currentCard.priceEur != null) "€${currentCard.priceEur}" else "N/A",
+                                        color = Color(0xFF38BDF8),
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // --- View Price History Button ---
+                        Button(
+                            onClick = {
+                                currentCard.cardmarketUrl?.let { url ->
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    context.startActivity(intent)
+                                }
+                            },
+                            enabled = currentCard.cardmarketUrl != null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF0F172A),
+                                contentColor = Color(0xFF38BDF8),
+                                disabledContainerColor = Color(0xFF0F172A).copy(alpha = 0.5f),
+                                disabledContentColor = Color(0xFF38BDF8).copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (currentCard.cardmarketUrl != null) Color(0xFF38BDF8).copy(alpha = 0.5f)
+                                else Color.Gray.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Text("View Price History")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+
+                        // --- Info Grid ---
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             InfoBox(
-                                label = "Market Price",
-                                value = "$24.99",
-                                valueColor = Color(0xFF38BDF8),
+                                label = "Type",
+                                value = currentCard.typeLine.split("—").firstOrNull()?.trim() ?: "Card",
                                 modifier = Modifier.weight(1f)
                             )
                             InfoBox(
-                                label = "Type",
-                                value = currentCard.typeLine.split("—").firstOrNull()?.trim() ?: currentCard.typeLine,
+                                label = "Rarity",
+                                value = currentCard.rarity?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() } ?: "-",
+                                valueColor = getRarityColor(currentCard.rarity),
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Rarity & Artist
+                        // --- Artist & Finish ---
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = Color(0xFF0F172A).copy(alpha = 0.5f),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                DetailLine("Rarity", currentCard.rarity?.replaceFirstChar { it.uppercase() } ?: "Common", Color(0xFFFBBF24))
+                                DetailLine("Artist", currentCard.artist ?: "Unknown", Color.White)
                                 Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
-                                DetailLine("Artist", currentCard.artist ?: "Unknown Artist", Color.White)
-                                Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
-                                DetailLine("Collector #", currentCard.collectorNumber ?: "N/A", Color.White)
+
+                                // Foil Status
+                                val isFoil = currentCard.finishes.contains("foil")
+                                val isEtched = currentCard.finishes.contains("etched")
+                                val finishText = when {
+                                    isEtched -> "Etched Foil"
+                                    isFoil -> "Foil"
+                                    else -> "Non-Foil"
+                                }
+                                DetailLine("Finish", finishText, if (isFoil || isEtched) Color(0xFFFFD700) else Color.White)
                             }
                         }
 
@@ -367,6 +438,17 @@ fun ResultOverlay(
 }
 
 @Composable
+fun getRarityColor(rarity: String?): Color {
+    return when (rarity?.lowercase()) {
+        "common" -> Color.White
+        "uncommon" -> Color(0xFFC0C0C0) // Silver
+        "rare" -> Color(0xFFFFD700) // Gold
+        "mythic" -> Color(0xFFFF8C00) // Orange/Red
+        else -> Color.White
+    }
+}
+
+@Composable
 fun InfoBox(label: String, value: String, valueColor: Color = Color.White, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.height(80.dp),
@@ -378,7 +460,7 @@ fun InfoBox(label: String, value: String, valueColor: Color = Color.White, modif
             verticalArrangement = Arrangement.Center
         ) {
             Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
-            Text(value, color = valueColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }
