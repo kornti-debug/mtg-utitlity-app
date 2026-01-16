@@ -118,7 +118,7 @@
         <h3>Database Design (ERD)</h3>
         <p class="text-center">A single-table Room Database handles the offline persistence.</p>
         
-        <div class="mermaid">
+        <div class="mermaid erd-small">
             erDiagram
             CARD {
                 Long scanId PK
@@ -149,6 +149,23 @@
             <li><strong>Feedback:</strong> Does the user know if the camera is actively searching?</li>
         </ul>
 
+        <details class="collapsible">
+            <summary>View Heuristic Evaluation (Initial Prototype)</summary>
+            <div class="details-content">
+                <h4>Visibility of System Status</h4>
+                <p><strong style="color:#ef4444">Negative:</strong> The Camera preview is static. Users commented they weren't sure if the app was "frozen" or actively OCR-scanning. Needs a loading indicator.</p>
+                
+                <h4>Match between System & World</h4>
+                <p><strong style="color:var(--accent-red)">Negative:</strong> The concept of "Favorites" vs "Categories" was initially confusing. Users expected a folder system like a physical binder.</p>
+
+                <h4>Help and Documentation</h4>
+                <p><strong style="color:#ef4444">Critical:</strong> The <strong>Swipe-to-Delete</strong> function is a "Hidden Affordance." There is no visual cue (like a trash icon) until the user starts swiping. This makes the feature hard to discover.</p>
+
+                <h4>User Control (Error Prevention)</h4>
+                <p><strong style="color:var(--accent-red)">Negative:</strong> Deleting a card happens instantly on swipe. A confirmation dialog or "Undo" snackbar is missing to prevent accidental data loss.</p>
+            </div>
+        </details>
+
         <h4>Test Protocol (Tasks)</h4>
         <div class="grid-2">
             <div class="info-box" style="text-align: left;">
@@ -172,25 +189,13 @@
                 <small style="color:var(--text-muted)">Metric: Discovery of Swipe</small>
             </div>
         </div>
-
-        <details class="collapsible">
-            <summary>View Heuristic Evaluation (Initial Prototype)</summary>
-            <div class="details-content">
-                <h4>Visibility of System Status</h4>
-                <p><strong style="color:#ef4444">Negative:</strong> The Camera preview is static. Users commented they weren't sure if the app was "frozen" or actively OCR-scanning. Needs a loading indicator.</p>
-                
-                <h4>Match between System & World</h4>
-                <p><strong style="color:var(--accent-red)">Negative:</strong> The concept of "Favorites" vs "Categories" was initially confusing. Users expected a folder system like a physical binder.</p>
-
-                <h4>Help and Documentation</h4>
-                <p><strong style="color:#ef4444">Critical:</strong> The <strong>Swipe-to-Delete</strong> function is a "Hidden Affordance." There is no visual cue (like a trash icon) until the user starts swiping. This makes the feature hard to discover.</p>
-
-                <h4>User Control (Error Prevention)</h4>
-                <p><strong style="color:var(--accent-red)">Negative:</strong> Deleting a card happens instantly on swipe. A confirmation dialog or "Undo" snackbar is missing to prevent accidental data loss.</p>
-            </div>
-        </details>
-
-        <h4>Results Summary</h4>
+        <div style="margin-top: 20px;">
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfH-Ym7kuecUz_wu4rlxg-ppmK8lT3SMMMSqUpDW8Gd2bYZnA/viewform?usp=header" target="_blank" class="social-btn" style="font-size: 0.9rem;">
+                View Questionnaire
+            </a>
+        </div>
+<!--
+        <h4>Results Summary</h4> 
         <table class="results-table">
             <thead>
                 <tr>
@@ -220,11 +225,7 @@
             <li><i class="fas fa-check-circle"></i> <strong>Inbox Pattern:</strong> Added "Uncategorized" tab to Favorites to better organize new scans.</li>
         </ul>
         
-        <div style="margin-top: 20px;">
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSfH-Ym7kuecUz_wu4rlxg-ppmK8lT3SMMMSqUpDW8Gd2bYZnA/viewform?usp=header" target="_blank" class="social-btn" style="font-size: 0.9rem;">
-                View Questionnaire
-            </a>
-        </div>
+
     </div>
 
     <div class="section-outline">
@@ -242,7 +243,7 @@
             </div>
         </div>
     </div>
-
+-->
     <footer>
         <p>&copy; 2026 MTG Utility App Team. UAS St. Pölten.</p>
     </footer>
