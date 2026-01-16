@@ -221,3 +221,9 @@ h4 { margin-top: 25px; margin-bottom: 10px; color: var(--text-color); }
 .reflection-text { font-style: italic; font-size: 0.95rem; }
 
 footer { color: var(--text-muted); margin-top: 40px; font-size: 0.9rem; }
+
+/* Specific fix for the ERD to make it smaller/centered */
+.erd-small svg {
+    max-width: 350px !important;  /* Shrink width significantly */
+    min-width: unset !important;  /* Remove the forced 600px minimum */
+}
