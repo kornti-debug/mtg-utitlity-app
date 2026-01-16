@@ -189,6 +189,7 @@ fun HistoryScreen(
         showSubsetDialogForCard?.let { card ->
             SubsetSelectionDialog(
                 currentSubset = card.subset,
+                availableSubsets = uiState.subsets,
                 onDismiss = { showSubsetDialogForCard = null },
                 onSubsetSelected = { subset ->
                     viewModel.updateCardSubset(card, subset)
@@ -213,7 +214,8 @@ fun HistoryScreen(
                 onSave = { updatedCard ->
                     viewModel.updateCard(updatedCard)
                 },
-                onDismiss = { viewModel.dismissCard() }
+                onDismiss = { viewModel.dismissCard() },
+                availableSubsets = uiState.subsets // Pass dynamic subsets here
             )
         }
     }
@@ -237,7 +239,6 @@ fun HistoryCardItem(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail
             AsyncImage(
                 model = card.imageUrl,
                 contentDescription = card.name,
@@ -249,7 +250,6 @@ fun HistoryCardItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = card.name,
@@ -279,7 +279,6 @@ fun HistoryCardItem(
                 }
             }
 
-            // Favorite Toggle
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -289,9 +288,6 @@ fun HistoryCardItem(
                         CircleShape
                     )
                     .clip(CircleShape)
-                    // FIX: Pass 'card' (or card.isFavorite) as key to pointerInput.
-                    // This forces the touch listener to refresh when the card state changes.
-                    // Previously 'Unit' prevented it from seeing the updated data.
                     .pointerInput(card) {
                         detectTapGestures(
                             onTap = { onFavoriteToggle() },
@@ -310,7 +306,6 @@ fun HistoryCardItem(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Mana Cost Tag
             if (!card.manaCost.isNullOrBlank()) {
                 Surface(
                     color = Color(0xFF0EA5E9).copy(alpha = 0.1f),
@@ -333,11 +328,11 @@ fun HistoryCardItem(
 @Composable
 fun SubsetSelectionDialog(
     currentSubset: String?,
+    availableSubsets: List<String>,
     onDismiss: () -> Unit,
     onSubsetSelected: (String?) -> Unit
 ) {
     var newSubset by remember { mutableStateOf("") }
-    val predefinedSubsets = listOf("Cheap", "Expensive", "Commander", "Modern")
     val isValidName = newSubset.isNotBlank() && newSubset.all { it.isLetterOrDigit() || it.isWhitespace() }
 
     AlertDialog(
@@ -346,27 +341,32 @@ fun SubsetSelectionDialog(
         containerColor = Color(0xFF1E293B),
         text = {
             Column {
-                Text("Select an existing category or create a new one:", color = Color.White.copy(alpha = 0.7f))
-                Spacer(modifier = Modifier.height(16.dp))
+                if (availableSubsets.isNotEmpty()) {
+                    Text("Select an existing category:", color = Color.White.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Existing Subsets
-                predefinedSubsets.forEach { subset ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSubsetSelected(subset) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(subset, color = Color.White)
+                    availableSubsets.forEach { subset ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSubsetSelected(subset) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(subset, color = Color.White)
+                        }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                } else {
+                    Text("No categories created yet.", color = Color.White.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                Text("Create new category:", color = Color.White.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Custom Subset Input
                 OutlinedTextField(
                     value = newSubset,
                     onValueChange = { newSubset = it },
@@ -396,8 +396,8 @@ fun SubsetSelectionDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color.White)
+            TextButton(onClick = { onSubsetSelected(null) }) {
+                Text("Uncategorized", color = Color.Red.copy(alpha = 0.7f))
             }
         }
     )

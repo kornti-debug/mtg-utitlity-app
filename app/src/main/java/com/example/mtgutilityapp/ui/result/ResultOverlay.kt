@@ -2,6 +2,7 @@ package com.example.mtgutilityapp.ui.result
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,7 +37,8 @@ fun ResultOverlay(
     onSave: (Card) -> Unit,
     onDismiss: () -> Unit,
     matchConfidence: Double = 1.0,
-    suggestedAlternatives: List<Card> = emptyList()
+    suggestedAlternatives: List<Card> = emptyList(),
+    availableSubsets: List<String> = emptyList() // Added parameter for dynamic lists
 ) {
     var isFavorite by remember { mutableStateOf(card.isFavorite) }
     var selectedSubset by remember { mutableStateOf(card.subset) }
@@ -44,7 +47,8 @@ fun ResultOverlay(
     var showAlternatives by remember { mutableStateOf(false) }
     var currentCard by remember { mutableStateOf(card) }
 
-    val subsets = listOf("None", "Cheap", "Expensive", "Commander", "Modern")
+    // dynamic list: always allow "Uncategorized" + whatever exists in DB
+    val displaySubsets = listOf("Uncategorized") + availableSubsets
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -227,9 +231,18 @@ fun ResultOverlay(
                                     CircleShape
                                 )
                                 .clip(CircleShape)
-                                .clickable {
-                                    isFavorite = !isFavorite
-                                    onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                // FIX: Use pointerInput with key to prevent stuck state
+                                .pointerInput(isFavorite) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            isFavorite = !isFavorite
+                                            // If unfavoriting, clear subset immediately
+                                            if (!isFavorite) {
+                                                selectedSubset = null
+                                            }
+                                            onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                        }
+                                    )
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -250,6 +263,8 @@ fun ResultOverlay(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Subset Dropdown (Only visible if Favorited)
                     if (isFavorite) {
                         ExposedDropdownMenuBox(
                             expanded = showSubsetMenu,
@@ -257,7 +272,7 @@ fun ResultOverlay(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             OutlinedTextField(
-                                value = selectedSubset ?: "Assign to Category",
+                                value = selectedSubset ?: "Uncategorized",
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
@@ -275,11 +290,12 @@ fun ResultOverlay(
                                 onDismissRequest = { showSubsetMenu = false },
                                 modifier = Modifier.background(Color(0xFF1E293B))
                             ) {
-                                subsets.forEach { subset ->
+                                displaySubsets.forEach { subset ->
                                     DropdownMenuItem(
                                         text = { Text(subset, color = Color.White) },
                                         onClick = {
-                                            selectedSubset = if (subset == "None") null else subset
+                                            // "Uncategorized" maps to null
+                                            selectedSubset = if (subset == "Uncategorized") null else subset
                                             showSubsetMenu = false
                                             onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
                                         }
@@ -289,6 +305,7 @@ fun ResultOverlay(
                         }
                         Spacer(modifier = Modifier.height(16.dp))
                     }
+
                     if (showDetails) {
                         // Info Boxes (Price & Type)
                         Row(

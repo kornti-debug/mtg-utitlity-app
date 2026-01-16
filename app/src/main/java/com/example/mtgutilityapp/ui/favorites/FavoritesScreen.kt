@@ -170,6 +170,7 @@ fun FavoritesScreen(
         showSubsetDialogForCard?.let { card ->
             SubsetSelectionDialog(
                 currentSubset = card.subset,
+                availableSubsets = uiState.subsets,
                 onDismiss = { showSubsetDialogForCard = null },
                 onSubsetSelected = { subset ->
                     viewModel.updateCardSubset(card, subset)
@@ -197,7 +198,8 @@ fun FavoritesScreen(
                         viewModel.dismissCard()
                     }
                 },
-                onDismiss = { viewModel.dismissCard() }
+                onDismiss = { viewModel.dismissCard() },
+                availableSubsets = uiState.subsets // Pass dynamic subsets here
             )
         }
     }
@@ -351,7 +353,6 @@ fun FavoriteCardItem(
                         CircleShape
                     )
                     .clip(CircleShape)
-                    // FIX: Pass 'card' as key to ensure it refreshes on change
                     .pointerInput(card) {
                         detectTapGestures(
                             onTap = { onFavoriteToggle() },
@@ -389,14 +390,16 @@ fun FavoriteCardItem(
     }
 }
 
+// Reuse the exact same dialog logic in Favorites Screen
 @Composable
 fun SubsetSelectionDialog(
     currentSubset: String?,
+    availableSubsets: List<String>,
     onDismiss: () -> Unit,
     onSubsetSelected: (String?) -> Unit
 ) {
     var newSubset by remember { mutableStateOf("") }
-    val predefinedSubsets = listOf("Cheap", "Expensive", "Commander", "Modern")
+    val isValidName = newSubset.isNotBlank() && newSubset.all { it.isLetterOrDigit() || it.isWhitespace() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -404,43 +407,53 @@ fun SubsetSelectionDialog(
         containerColor = Color(0xFF1E293B),
         text = {
             Column {
-                Text("Select an existing category or create a new one:", color = Color.White.copy(alpha = 0.7f))
-                Spacer(modifier = Modifier.height(16.dp))
+                if (availableSubsets.isNotEmpty()) {
+                    Text("Select an existing category:", color = Color.White.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Existing Subsets
-                predefinedSubsets.forEach { subset ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSubsetSelected(subset) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(subset, color = Color.White)
+                    availableSubsets.forEach { subset ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSubsetSelected(subset) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(subset, color = Color.White)
+                        }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                } else {
+                    Text("No categories created yet.", color = Color.White.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                Text("Create new category:", color = Color.White.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Custom Subset Input
                 OutlinedTextField(
                     value = newSubset,
                     onValueChange = { newSubset = it },
                     placeholder = { Text("New Category Name") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = newSubset.isNotEmpty() && !isValidName,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF38BDF8)
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        errorBorderColor = Color.Red
                     )
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (newSubset.isNotBlank()) onSubsetSelected(newSubset) }) {
-                Text("ADD NEW", color = Color(0xFF38BDF8))
+            TextButton(
+                onClick = { if (isValidName) onSubsetSelected(newSubset) },
+                enabled = isValidName
+            ) {
+                Text("CREATE AND ADD", color = if (isValidName) Color(0xFF38BDF8) else Color.Gray)
             }
         },
         dismissButton = {
