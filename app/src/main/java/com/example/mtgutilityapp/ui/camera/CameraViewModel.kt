@@ -56,15 +56,19 @@ class CameraViewModel(
                         matchConfidence = 0.0,
                         suggestedAlternatives = emptyList()
                     )
-                    searchCard(scanResult.cardName, scanResult.footerText, context)
+
+                    // Pass full RAW text for regex search
+                    searchCard(scanResult.cardName, scanResult.rawFooter, context)
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
             } finally {
                 isProcessing.set(false)
             }
         }
     }
 
-    private fun searchCard(name: String, footerText: String, context: Context) {
+    private fun searchCard(name: String, rawText: String, context: Context) {
         viewModelScope.launch {
             if (!NetworkHelper.isNetworkAvailable(context)) {
                 _uiState.value = _uiState.value.copy(
@@ -75,7 +79,7 @@ class CameraViewModel(
                 return@launch
             }
 
-            val result = repository.searchCard(name, footerText)
+            val result = repository.searchCard(name, rawText)
 
             result.onSuccess { data ->
                 val scanId = repository.saveCard(data.card)
@@ -89,6 +93,7 @@ class CameraViewModel(
                     suggestedAlternatives = data.suggestedAlternatives
                 )
             }.onFailure { exception ->
+                // This now handles the strict "No set code found" error
                 _uiState.value = _uiState.value.copy(
                     isScanning = false,
                     error = exception.message ?: "Card not found"

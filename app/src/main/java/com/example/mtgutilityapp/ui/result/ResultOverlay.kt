@@ -250,49 +250,46 @@ fun ResultOverlay(
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    if (showDetails) {
-                        // Subset Selection
-                        if (isFavorite) {
-                            ExposedDropdownMenuBox(
+                    if (isFavorite) {
+                        ExposedDropdownMenuBox(
+                            expanded = showSubsetMenu,
+                            onExpandedChange = { showSubsetMenu = !showSubsetMenu },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selectedSubset ?: "Assign to Category",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubsetMenu) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFF38BDF8),
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
                                 expanded = showSubsetMenu,
-                                onExpandedChange = { showSubsetMenu = !showSubsetMenu },
-                                modifier = Modifier.fillMaxWidth()
+                                onDismissRequest = { showSubsetMenu = false },
+                                modifier = Modifier.background(Color(0xFF1E293B))
                             ) {
-                                OutlinedTextField(
-                                    value = selectedSubset ?: "Assign to Category",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubsetMenu) },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFF38BDF8),
-                                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
-                                    ),
-                                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = showSubsetMenu,
-                                    onDismissRequest = { showSubsetMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1E293B))
-                                ) {
-                                    subsets.forEach { subset ->
-                                        DropdownMenuItem(
-                                            text = { Text(subset, color = Color.White) },
-                                            onClick = {
-                                                selectedSubset = if (subset == "None") null else subset
-                                                showSubsetMenu = false
-                                                onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
-                                            }
-                                        )
-                                    }
+                                subsets.forEach { subset ->
+                                    DropdownMenuItem(
+                                        text = { Text(subset, color = Color.White) },
+                                        onClick = {
+                                            selectedSubset = if (subset == "None") null else subset
+                                            showSubsetMenu = false
+                                            onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                        }
+                                    )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
                         }
-
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                    if (showDetails) {
                         // Info Boxes (Price & Type)
                         Row(
                             modifier = Modifier.fillMaxWidth(),

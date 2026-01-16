@@ -2,6 +2,7 @@ package com.example.mtgutilityapp.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -29,9 +32,6 @@ import com.example.mtgutilityapp.ui.camera.CustomBottomNavigation
 import com.example.mtgutilityapp.ui.result.ResultOverlay
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 
 @Composable
 fun HistoryScreen(
@@ -43,6 +43,7 @@ fun HistoryScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var showSubsetDialogForCard by remember { mutableStateOf<Card?>(null) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
         Column(
@@ -52,12 +53,11 @@ fun HistoryScreen(
         ) {
             Spacer(modifier = Modifier.height(64.dp))
 
+            // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-            // Header with Back Button
-            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onNavigateBack) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.White)
                 }
@@ -75,10 +75,10 @@ fun HistoryScreen(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 )
-            }
-                Spacer(modifier = Modifier.weight(1f)) // Pushes the next item to the far right
 
-                // Right side: Delete All Button (Only show if list is not empty)
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Delete All Button
                 if (uiState.cards.isNotEmpty()) {
                     IconButton(onClick = { showDeleteAllDialog = true }) {
                         Icon(
@@ -114,13 +114,10 @@ fun HistoryScreen(
                     contentPadding = PaddingValues(bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Inside LazyColumn...
                     items(uiState.cards, key = { it.scanId }) { card ->
-                        // 1. Setup the Swipe State
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = {
                                 if (it == SwipeToDismissBoxValue.EndToStart) {
-                                    // This triggers the delete in the database
                                     viewModel.deleteCard(card)
                                     true
                                 } else {
@@ -129,17 +126,15 @@ fun HistoryScreen(
                             }
                         )
 
-                        // 2. Wrap the item in the Swipe Box
                         SwipeToDismissBox(
                             state = dismissState,
-                            enableDismissFromStartToEnd = false, // Only swipe left to delete
+                            enableDismissFromStartToEnd = false,
                             backgroundContent = {
-                                // The red background behind the card
                                 val color = Color.Red.copy(alpha = 0.8f)
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(vertical = 4.dp) // Match card margin
+                                        .padding(vertical = 4.dp)
                                         .background(color, RoundedCornerShape(24.dp))
                                         .padding(horizontal = 24.dp),
                                     contentAlignment = Alignment.CenterEnd
@@ -152,11 +147,11 @@ fun HistoryScreen(
                                 }
                             },
                             content = {
-                                // Your existing card item
                                 HistoryCardItem(
                                     card = card,
                                     onClick = { viewModel.selectCard(card) },
-                                    onFavoriteToggle = { viewModel.toggleFavorite(card) }
+                                    onFavoriteToggle = { viewModel.toggleFavorite(card) },
+                                    onLongPressHeart = { showSubsetDialogForCard = card }
                                 )
                             }
                         )
@@ -165,6 +160,7 @@ fun HistoryScreen(
             }
         }
 
+        // Delete All Dialog
         if (showDeleteAllDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteAllDialog = false },
@@ -174,7 +170,7 @@ fun HistoryScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            viewModel.deleteAllCards() // Function already exists in your VM!
+                            viewModel.deleteAllCards()
                             showDeleteAllDialog = false
                         }
                     ) {
@@ -185,6 +181,18 @@ fun HistoryScreen(
                     TextButton(onClick = { showDeleteAllDialog = false }) {
                         Text("Cancel", color = Color.White)
                     }
+                }
+            )
+        }
+
+        // Subset Selection Dialog
+        showSubsetDialogForCard?.let { card ->
+            SubsetSelectionDialog(
+                currentSubset = card.subset,
+                onDismiss = { showSubsetDialogForCard = null },
+                onSubsetSelected = { subset ->
+                    viewModel.updateCardSubset(card, subset)
+                    showSubsetDialogForCard = null
                 }
             )
         }
@@ -202,7 +210,7 @@ fun HistoryScreen(
         uiState.selectedCard?.let { card ->
             ResultOverlay(
                 card = card,
-                onSave = { updatedCard -> 
+                onSave = { updatedCard ->
                     viewModel.updateCard(updatedCard)
                 },
                 onDismiss = { viewModel.dismissCard() }
@@ -213,15 +221,16 @@ fun HistoryScreen(
 
 @Composable
 fun HistoryCardItem(
-    card: Card, 
+    card: Card,
     onClick: () -> Unit,
-    onFavoriteToggle: () -> Unit
+    onFavoriteToggle: () -> Unit,
+    onLongPressHeart: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        color = Color(0xFF1E293B), // Card background
+        color = Color(0xFF1E293B),
         shape = RoundedCornerShape(24.dp)
     ) {
         Row(
@@ -253,12 +262,21 @@ fun HistoryCardItem(
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 14.sp
                 )
-                Text(
-                    text = "Scanned ${formatTime(card.scannedAt)}",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
+                if (card.subset != null) {
+                    Text(
+                        text = "Category: ${card.subset}",
+                        color = Color(0xFF38BDF8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    Text(
+                        text = "Scanned ${formatTime(card.scannedAt)}",
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
 
             // Favorite Toggle
@@ -266,12 +284,20 @@ fun HistoryCardItem(
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        if (card.isFavorite) Color(0xFF00E5FF).copy(alpha = 0.2f) 
-                        else Color.Transparent, 
+                        if (card.isFavorite) Color(0xFF00E5FF).copy(alpha = 0.2f)
+                        else Color.Transparent,
                         CircleShape
                     )
                     .clip(CircleShape)
-                    .clickable { onFavoriteToggle() },
+                    // FIX: Pass 'card' (or card.isFavorite) as key to pointerInput.
+                    // This forces the touch listener to refresh when the card state changes.
+                    // Previously 'Unit' prevented it from seeing the updated data.
+                    .pointerInput(card) {
+                        detectTapGestures(
+                            onTap = { onFavoriteToggle() },
+                            onLongPress = { onLongPressHeart() }
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -304,10 +330,83 @@ fun HistoryCardItem(
     }
 }
 
+@Composable
+fun SubsetSelectionDialog(
+    currentSubset: String?,
+    onDismiss: () -> Unit,
+    onSubsetSelected: (String?) -> Unit
+) {
+    var newSubset by remember { mutableStateOf("") }
+    val predefinedSubsets = listOf("Cheap", "Expensive", "Commander", "Modern")
+    val isValidName = newSubset.isNotBlank() && newSubset.all { it.isLetterOrDigit() || it.isWhitespace() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Move to Category", color = Color.White) },
+        containerColor = Color(0xFF1E293B),
+        text = {
+            Column {
+                Text("Select an existing category or create a new one:", color = Color.White.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Existing Subsets
+                predefinedSubsets.forEach { subset ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSubsetSelected(subset) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(subset, color = Color.White)
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+
+                // Custom Subset Input
+                OutlinedTextField(
+                    value = newSubset,
+                    onValueChange = { newSubset = it },
+                    placeholder = { Text("New Category Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = newSubset.isNotEmpty() && !isValidName,
+                    supportingText = {
+                        if (newSubset.isNotEmpty() && !isValidName) {
+                            Text("Only letters and numbers allowed")
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        errorBorderColor = Color.Red
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (isValidName) onSubsetSelected(newSubset) },
+                enabled = isValidName
+            ) {
+                Text("CREATE AND ADD", color = if (isValidName) Color(0xFF38BDF8) else Color.Gray)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.White)
+            }
+        }
+    )
+}
+
 private fun formatTime(timestamp: Long): String {
     val now = Calendar.getInstance()
     val time = Calendar.getInstance().apply { timeInMillis = timestamp }
-    
+
     return when {
         now.get(Calendar.DATE) == time.get(Calendar.DATE) -> {
             "Today, " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp))

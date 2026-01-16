@@ -362,20 +362,6 @@ fun ScannerOverlay() {
             strokeWidth = strokeWidth
         )
 
-        // 3. OCR Zone Highlight (Bottom 20% for Set/Number)
-        val ocrZoneWidth = frameWidth * 0.90f
-        val ocrZoneHeight = frameHeight * 0.15f
-        val ocrZoneLeft = left + (frameWidth * 0.05f)
-        val ocrZoneTop = top + frameHeight * 0.82f
-
-        drawRoundRect(
-            color = Color.Yellow.copy(alpha = 0.3f),
-            topLeft = Offset(ocrZoneLeft, ocrZoneTop),
-            size = Size(ocrZoneWidth, ocrZoneHeight),
-            cornerRadius = CornerRadius(8.dp.toPx()),
-            style = Stroke(width = 2.dp.toPx())
-        )
-
         // 4. Center Crosshair
         val crossSize = 30.dp.toPx()
         val centerX = width / 2
@@ -440,7 +426,7 @@ fun CameraPreview(
             val resolutionSelector = ResolutionSelector.Builder()
                 .setResolutionStrategy(
                     ResolutionStrategy(
-                        android.util.Size(1280, 720),
+                        android.util.Size(1920, 1080), // Minimum 1080p, preferably higher
                         ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                     )
                 )

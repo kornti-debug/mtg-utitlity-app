@@ -7,6 +7,7 @@ import com.example.mtgutilityapp.domain.model.Card
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class HistoryUiState(
@@ -29,26 +30,56 @@ class HistoryViewModel(
     private fun loadCards() {
         viewModelScope.launch {
             repository.getAllCards().collect { cards ->
-                _uiState.value = _uiState.value.copy(
-                    cards = cards,
-                    isLoading = false
-                )
+                _uiState.update { currentState ->
+                    // 1. Sync the currently selected card with the new list
+                    // This prevents selection from getting "stuck" on an old version of the card
+                    val updatedSelection = currentState.selectedCard?.let { selected ->
+                        cards.find { it.scanId == selected.scanId }
+                    }
+
+                    // 2. Return new state
+                    currentState.copy(
+                        cards = cards,
+                        isLoading = false,
+                        selectedCard = updatedSelection
+                    )
+                }
             }
         }
     }
 
     fun selectCard(card: Card) {
-        _uiState.value = _uiState.value.copy(selectedCard = card)
+        _uiState.update { it.copy(selectedCard = card) }
     }
 
     fun dismissCard() {
-        _uiState.value = _uiState.value.copy(selectedCard = null)
+        _uiState.update { it.copy(selectedCard = null) }
     }
 
     fun toggleFavorite(card: Card) {
         viewModelScope.launch {
-            val updatedCard = card.copy(isFavorite = !card.isFavorite)
+            // Logic:
+            // 1. Toggle the Favorite status.
+            // 2. ALWAYS reset subset to null.
+            //    - If unfavoriting: It removes the category (null).
+            //    - If favoriting: It starts as "Uncategorized" (null).
+            val updatedCard = card.copy(
+                isFavorite = !card.isFavorite,
+                subset = null
+            )
             repository.updateCard(updatedCard)
+        }
+    }
+
+    fun updateCardSubset(card: Card, subset: String?) {
+        viewModelScope.launch {
+            val updatedCard = card.copy(subset = subset, isFavorite = true)
+            repository.updateCard(updatedCard)
+
+            // If it's a new subset, ensure it's in the persistent list
+            if (subset != null && subset != "Uncategorized") {
+                repository.insertSubset(subset)
+            }
         }
     }
 
