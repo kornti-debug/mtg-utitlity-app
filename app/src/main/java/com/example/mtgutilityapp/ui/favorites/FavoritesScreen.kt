@@ -70,6 +70,7 @@ fun FavoritesScreen(
                 modifier = Modifier.padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 1. "All Favorites" Button (Default)
                 item {
                     SubsetTab(
                         name = "All Favorites",
@@ -77,6 +78,19 @@ fun FavoritesScreen(
                         onClick = { viewModel.selectSubset(null) }
                     )
                 }
+
+                // 2. "Uncategorized" Button
+                // Only show this if there are actually cards without a category to avoid clutter
+                // OR always show it if you prefer.
+                item {
+                    SubsetTab(
+                        name = "Uncategorized",
+                        isSelected = uiState.selectedSubset == "Uncategorized",
+                        onClick = { viewModel.selectSubset("Uncategorized") }
+                    )
+                }
+
+                // 3. Dynamic Category Buttons (Commander, Modern, etc.)
                 items(uiState.subsets) { subset ->
                     SubsetTab(
                         name = subset,
@@ -85,6 +99,18 @@ fun FavoritesScreen(
                     )
                 }
             }
+
+// Update the helper text below the tabs to match
+            Text(
+                text = when (uiState.selectedSubset) {
+                    null -> "Showing all favorites"
+                    "Uncategorized" -> "Cards not in any category"
+                    else -> "Category: ${uiState.selectedSubset}"
+                },
+                color = Color.White.copy(alpha = 0.5f),
+                fontSize = 14.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
             Text(
                 text = if (uiState.selectedSubset == null) "Cards not in categories" else "Category: ${uiState.selectedSubset}",

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.History
@@ -28,6 +29,9 @@ import com.example.mtgutilityapp.ui.camera.CustomBottomNavigation
 import com.example.mtgutilityapp.ui.result.ResultOverlay
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 
 @Composable
 fun HistoryScreen(
@@ -38,6 +42,8 @@ fun HistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
         Column(
             modifier = Modifier
@@ -46,6 +52,10 @@ fun HistoryScreen(
         ) {
             Spacer(modifier = Modifier.height(64.dp))
 
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
             // Header with Back Button
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onNavigateBack) {
@@ -65,6 +75,19 @@ fun HistoryScreen(
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+                Spacer(modifier = Modifier.weight(1f)) // Pushes the next item to the far right
+
+                // Right side: Delete All Button (Only show if list is not empty)
+                if (uiState.cards.isNotEmpty()) {
+                    IconButton(onClick = { showDeleteAllDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Clear History",
+                            tint = Color.Red.copy(alpha = 0.8f)
+                        )
+                    }
+                }
             }
 
             Text(
@@ -91,15 +114,79 @@ fun HistoryScreen(
                     contentPadding = PaddingValues(bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Inside LazyColumn...
                     items(uiState.cards, key = { it.scanId }) { card ->
-                        HistoryCardItem(
-                            card = card,
-                            onClick = { viewModel.selectCard(card) },
-                            onFavoriteToggle = { viewModel.toggleFavorite(card) }
+                        // 1. Setup the Swipe State
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = {
+                                if (it == SwipeToDismissBoxValue.EndToStart) {
+                                    // This triggers the delete in the database
+                                    viewModel.deleteCard(card)
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                        )
+
+                        // 2. Wrap the item in the Swipe Box
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            enableDismissFromStartToEnd = false, // Only swipe left to delete
+                            backgroundContent = {
+                                // The red background behind the card
+                                val color = Color.Red.copy(alpha = 0.8f)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(vertical = 4.dp) // Match card margin
+                                        .background(color, RoundedCornerShape(24.dp))
+                                        .padding(horizontal = 24.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = Color.White
+                                    )
+                                }
+                            },
+                            content = {
+                                // Your existing card item
+                                HistoryCardItem(
+                                    card = card,
+                                    onClick = { viewModel.selectCard(card) },
+                                    onFavoriteToggle = { viewModel.toggleFavorite(card) }
+                                )
+                            }
                         )
                     }
                 }
             }
+        }
+
+        if (showDeleteAllDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteAllDialog = false },
+                title = { Text("Clear History?", color = Color.White) },
+                text = { Text("This will delete all scanned cards. Your Favorites will remain safe.", color = Color.White.copy(alpha = 0.7f)) },
+                containerColor = Color(0xFF1E293B),
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteAllCards() // Function already exists in your VM!
+                            showDeleteAllDialog = false
+                        }
+                    ) {
+                        Text("DELETE ALL", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteAllDialog = false }) {
+                        Text("Cancel", color = Color.White)
+                    }
+                }
+            )
         }
 
         // Bottom Navigation

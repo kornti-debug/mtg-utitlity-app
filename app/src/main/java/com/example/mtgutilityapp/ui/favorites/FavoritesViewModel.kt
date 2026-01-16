@@ -28,29 +28,36 @@ class FavoritesViewModel(private val repository: CardRepository) : ViewModel() {
         loadData()
     }
 
+// Inside FavoritesViewModel.kt
+
     private fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            
-            // Combine all cards and the selected subset to produce the filtered list
+
             combine(
                 repository.getAllCards(),
                 _selectedSubset
             ) { allCards, selectedSubset ->
+                // 1. Get all favorites
                 val favorites = allCards.filter { it.isFavorite }
-                val uniqueSubsets = favorites.mapNotNull { it.subset }.distinct().sorted()
-                
-                val filteredCards = if (selectedSubset == null) {
-                    // Show favorites that ARE NOT in any subset
-                    favorites.filter { it.subset == null }
-                } else {
-                    // Show favorites in the selected subset
-                    favorites.filter { it.subset == selectedSubset }
+
+                // 2. Build the list of available category tabs
+                // We start with "All" (represented by null in UI logic, but handled separately here)
+                // We find all unique non-null subsets existing in the DB
+                val existingSubsets = favorites.mapNotNull { it.subset }.distinct().sorted()
+
+                // 3. Determine which cards to show based on selection
+                val filteredCards = when (selectedSubset) {
+                    null -> favorites // "All Favorites" shows EVERYTHING now
+                    "Uncategorized" -> favorites.filter { it.subset == null } // Dedicated filter for unsorted
+                    else -> favorites.filter { it.subset == selectedSubset } // Specific category
                 }
 
                 FavoritesUiState(
                     cards = filteredCards,
-                    subsets = uniqueSubsets,
+                    // We pass the categories to the UI.
+                    // We don't add "Uncategorized" here yet, we'll do it in the UI to keep it distinct.
+                    subsets = existingSubsets,
                     selectedSubset = selectedSubset,
                     isLoading = false,
                     selectedCard = _uiState.value.selectedCard
