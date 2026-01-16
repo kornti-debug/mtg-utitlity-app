@@ -1,4 +1,4 @@
-/* App Theme Colors (Matches Android App) */
+/* docs/style.css */
 :root {
     --bg-color: #0F172A;       /* Dark Slate */
     --card-bg: #1E293B;        /* Lighter Slate */
@@ -20,6 +20,15 @@ body {
     line-height: 1.6;
 }
 
+/* --- HEADER CENTERING FIX --- */
+header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers items horizontally */
+    text-align: center;  /* Centers text inside items */
+}
+
 /* Typography */
 h1 { font-size: 3rem; margin-bottom: 5px; color: var(--text-color); }
 .subtitle { color: var(--primary-color); font-weight: 400; margin-top: 0; letter-spacing: 1px; }
@@ -34,14 +43,50 @@ h3 {
 }
 
 h4 { margin-top: 25px; margin-bottom: 10px; color: var(--text-color); }
-
 .text-center { text-align: center; max-width: 700px; color: var(--text-muted); }
 
-/* Header Elements */
-.anim-logo { margin: 40px 0 20px 0; }
-.anim-logo svg { filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4)); }
+/* --- LOGO SCANNER ANIMATION --- */
+.anim-logo { 
+    margin: 40px 0 20px 0; 
+    position: relative;
+    display: inline-block;
+}
 
-.tags { display: flex; gap: 10px; margin: 20px 0; }
+.anim-logo svg { 
+    filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.4)); 
+    display: block;
+}
+
+/* The scanning line */
+.anim-logo::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px; /* Thickness of scan line */
+    background: var(--primary-color);
+    box-shadow: 0 0 15px var(--primary-color); /* Glow effect */
+    animation: scan 2s infinite ease-in-out;
+    opacity: 0.8;
+}
+
+/* The animation logic */
+@keyframes scan {
+    0% { top: 0%; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* --- TAGS CENTERING FIX --- */
+.tags { 
+    display: flex; 
+    gap: 10px; 
+    margin: 20px 0; 
+    justify-content: center; /* Forces tags to center */
+}
+
 .tag {
     font-size: 0.8rem;
     padding: 4px 12px;
@@ -74,11 +119,10 @@ h4 { margin-top: 25px; margin-bottom: 10px; color: var(--text-color); }
 
 .primary-btn {
     background-color: var(--primary-color);
-    color: var(--bg-color); /* Dark text on bright button */
+    color: var(--bg-color);
     border: none;
 }
 .primary-btn:hover { background-color: #0EA5E9; color: white; }
-
 .social-btn.disabled { opacity: 0.5; pointer-events: none; }
 
 /* Sections */
@@ -88,11 +132,26 @@ h4 { margin-top: 25px; margin-bottom: 10px; color: var(--text-color); }
     max-width: 900px;
     padding: 40px;
     margin-bottom: 30px;
-    border-radius: 24px; /* Matches app rounded corners */
+    border-radius: 24px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* --- MERMAID DIAGRAM SIZING FIX --- */
+.mermaid {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+/* Force the SVG to be bigger */
+.mermaid svg {
+    max-width: 100% !important; /* Allow full width */
+    min-width: 600px !important; /* Ensure it's not tiny */
+    height: auto !important;
 }
 
 /* Grids */
@@ -103,10 +162,14 @@ h4 { margin-top: 25px; margin-bottom: 10px; color: var(--text-color); }
     width: 100%;
     margin-top: 20px;
 }
-@media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { 
+    .grid-2 { grid-template-columns: 1fr; } 
+    /* Allow diagrams to shrink on mobile */
+    .mermaid svg { min-width: 100% !important; }
+}
 
 .info-box, .reflection-card {
-    background: rgba(15, 23, 42, 0.5); /* Darker inner bg */
+    background: rgba(15, 23, 42, 0.5);
     padding: 20px;
     border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.05);
