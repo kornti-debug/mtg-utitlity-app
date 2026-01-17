@@ -6,8 +6,10 @@ import com.google.gson.annotations.SerializedName
 data class ScryfallCardDto(
     val id: String,
     val name: String,
+    @SerializedName("printed_name") val printedName: String?, // localized name
+    @SerializedName("lang") val lang: String?,                // "en", "de", etc.
     @SerializedName("mana_cost") val manaCost: String?,
-    @SerializedName("type_line") val typeLine: String,
+    @SerializedName("type_line") val typeLine: String?,
     @SerializedName("oracle_text") val oracleText: String?,
     val power: String?,
     val toughness: String?,
@@ -17,7 +19,8 @@ data class ScryfallCardDto(
     @SerializedName("collector_number") val collectorNumber: String?,
     val rarity: String?,
     val artist: String?,
-    // NEW FIELDS
+
+    // Pricing & Links
     val prices: Prices?,
     @SerializedName("purchase_uris") val purchaseUris: PurchaseUris?,
     val finishes: List<String>?
@@ -25,13 +28,13 @@ data class ScryfallCardDto(
 
 data class Prices(
     val usd: String?,
-    val eur: String?, // Market price in EUR
+    val eur: String?,
     val tix: String?
 )
 
 data class PurchaseUris(
     val tcgplayer: String?,
-    val cardmarket: String?, // Link to Cardmarket
+    val cardmarket: String?,
     val cardhoarder: String?
 )
 
@@ -49,9 +52,10 @@ data class ScryfallSearchResponse(
 fun ScryfallCardDto.toDomain(): Card {
     return Card(
         id = id,
-        name = name,
+        // Use the printed (localized) name if available, otherwise the English name
+        name = printedName ?: name,
         manaCost = manaCost,
-        typeLine = typeLine,
+        typeLine = typeLine ?: "",
         oracleText = oracleText,
         power = power,
         toughness = toughness,
@@ -61,7 +65,8 @@ fun ScryfallCardDto.toDomain(): Card {
         collectorNumber = collectorNumber,
         rarity = rarity,
         artist = artist,
-        // Map new fields
+
+        // Map Scryfall data
         priceEur = prices?.eur,
         cardmarketUrl = purchaseUris?.cardmarket,
         finishes = finishes ?: emptyList()
