@@ -11,6 +11,7 @@ import com.example.mtgutilityapp.util.TextRecognitionHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -21,7 +22,9 @@ data class CameraUiState(
     val error: String? = null,
     val isOffline: Boolean = false,
     val matchConfidence: Double = 0.0,
-    val suggestedAlternatives: List<Card> = emptyList()
+    val suggestedAlternatives: List<Card> = emptyList(),
+    // NEW: Needed for the overlay dropdown
+    val subsets: List<String> = emptyList()
 )
 
 class CameraViewModel(
@@ -32,6 +35,19 @@ class CameraViewModel(
     val uiState: StateFlow<CameraUiState> = _uiState.asStateFlow()
 
     private val isProcessing = AtomicBoolean(false)
+
+    init {
+        // NEW: Load subsets immediately so they are ready when scanning
+        loadSubsets()
+    }
+
+    private fun loadSubsets() {
+        viewModelScope.launch {
+            repository.getAllSubsets().collect { subsets ->
+                _uiState.update { it.copy(subsets = subsets) }
+            }
+        }
+    }
 
     fun processImage(imageProxy: ImageProxy, context: Context) {
         if (_uiState.value.isScanning || _uiState.value.selectedCard != null || isProcessing.get()) {
@@ -49,15 +65,16 @@ class CameraViewModel(
                 val scanResult = TextRecognitionHelper.recognizeText(imageProxy)
 
                 if (scanResult != null && scanResult.cardName.isNotBlank()) {
-                    _uiState.value = _uiState.value.copy(
-                        isScanning = true,
-                        recognizedText = scanResult.cardName,
-                        error = null,
-                        matchConfidence = 0.0,
-                        suggestedAlternatives = emptyList()
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isScanning = true,
+                            recognizedText = scanResult.cardName,
+                            error = null,
+                            matchConfidence = 0.0,
+                            suggestedAlternatives = emptyList()
+                        )
+                    }
 
-                    // Pass full RAW text for regex search
                     searchCard(scanResult.cardName, scanResult.rawFooter, context)
                 }
             } catch (e: Exception) {
@@ -71,11 +88,13 @@ class CameraViewModel(
     private fun searchCard(name: String, rawText: String, context: Context) {
         viewModelScope.launch {
             if (!NetworkHelper.isNetworkAvailable(context)) {
-                _uiState.value = _uiState.value.copy(
-                    isScanning = false,
-                    isOffline = true,
-                    error = "No internet connection"
-                )
+                _uiState.update {
+                    it.copy(
+                        isScanning = false,
+                        isOffline = true,
+                        error = "No internet connection"
+                    )
+                }
                 return@launch
             }
 
@@ -85,19 +104,22 @@ class CameraViewModel(
                 val scanId = repository.saveCard(data.card)
                 val cardWithId = data.card.copy(scanId = scanId)
 
-                _uiState.value = _uiState.value.copy(
-                    selectedCard = cardWithId,
-                    isScanning = false,
-                    isOffline = false,
-                    matchConfidence = data.confidence,
-                    suggestedAlternatives = data.suggestedAlternatives
-                )
+                _uiState.update {
+                    it.copy(
+                        selectedCard = cardWithId,
+                        isScanning = false,
+                        isOffline = false,
+                        matchConfidence = data.confidence,
+                        suggestedAlternatives = data.suggestedAlternatives
+                    )
+                }
             }.onFailure { exception ->
-                // This now handles the strict "No set code found" error
-                _uiState.value = _uiState.value.copy(
-                    isScanning = false,
-                    error = exception.message ?: "Card not found"
-                )
+                _uiState.update {
+                    it.copy(
+                        isScanning = false,
+                        error = exception.message ?: "Card not found"
+                    )
+                }
             }
         }
     }
@@ -105,21 +127,28 @@ class CameraViewModel(
     fun saveCard(card: Card) {
         viewModelScope.launch {
             repository.updateCard(card)
-            _uiState.value = _uiState.value.copy(selectedCard = card)
+            _uiState.update { it.copy(selectedCard = card) }
+
+            // NEW: If the user typed a custom category in the overlay, ensure it's saved
+            if (card.subset != null && card.subset != "Uncategorized") {
+                repository.insertSubset(card.subset)
+            }
         }
     }
 
     fun dismissCard() {
-        _uiState.value = _uiState.value.copy(
-            selectedCard = null,
-            recognizedText = null,
-            error = null,
-            matchConfidence = 0.0,
-            suggestedAlternatives = emptyList()
-        )
+        _uiState.update {
+            it.copy(
+                selectedCard = null,
+                recognizedText = null,
+                error = null,
+                matchConfidence = 0.0,
+                suggestedAlternatives = emptyList()
+            )
+        }
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
     }
 }

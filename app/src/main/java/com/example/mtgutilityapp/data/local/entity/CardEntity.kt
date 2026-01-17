@@ -16,10 +16,17 @@ data class CardEntity(
     val toughness: String?,
     val imageUrl: String?,
     val setName: String?,
-    val setCode: String?,         // NEW
-    val collectorNumber: String?, // NEW
+    val setCode: String?,
+    val collectorNumber: String?,
     val rarity: String?,
     val artist: String?,
+
+    // --- ADD THESE MISSING FIELDS ---
+    val priceEur: String? = null,
+    val cardmarketUrl: String? = null,
+    val finishes: String? = null, // Saved as "foil,etched"
+    // --------------------------------
+
     val subset: String? = null,
     val isFavorite: Boolean = false,
     val scannedAt: Long
@@ -41,6 +48,12 @@ fun CardEntity.toDomain(): Card {
         collectorNumber = collectorNumber,
         rarity = rarity,
         artist = artist,
+
+        // Map the new fields back to the App
+        priceEur = priceEur,
+        cardmarketUrl = cardmarketUrl,
+        finishes = finishes?.split(",")?.filter { it.isNotEmpty() } ?: emptyList(),
+
         subset = subset,
         isFavorite = isFavorite,
         scannedAt = scannedAt
@@ -63,6 +76,12 @@ fun Card.toEntity(): CardEntity {
         collectorNumber = collectorNumber,
         rarity = rarity,
         artist = artist,
+
+        // Save the new fields to the Database
+        priceEur = priceEur,
+        cardmarketUrl = cardmarketUrl,
+        finishes = finishes.joinToString(","),
+
         subset = subset,
         isFavorite = isFavorite,
         scannedAt = scannedAt

@@ -27,7 +27,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -143,7 +142,9 @@ fun CameraScreen(
                     },
                     onDismiss = { viewModel.dismissCard() },
                     matchConfidence = uiState.matchConfidence,
-                    suggestedAlternatives = uiState.suggestedAlternatives
+                    suggestedAlternatives = uiState.suggestedAlternatives,
+                    // NEW: Pass the list of categories to the overlay
+                    availableSubsets = uiState.subsets
                 )
             }
 
@@ -352,7 +353,7 @@ fun ScannerOverlay() {
         drawLine(
             color = cornerColor,
             start = Offset(left + frameWidth, top + frameHeight - cornerLength),
-            end = Offset(left + frameWidth, top + frameHeight - cornerRadius),
+            end = Offset(left + frameWidth - cornerRadius, top + frameHeight),
             strokeWidth = strokeWidth
         )
         drawLine(
