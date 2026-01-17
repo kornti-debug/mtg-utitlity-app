@@ -8,19 +8,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class FavoritesUiState(
     val cards: List<Card> = emptyList(),
     val subsets: List<String> = emptyList(),
-    val selectedSubset: String? = null,
+    val selectedSubset: String? = "Uncategorized",
     val isLoading: Boolean = false,
     val selectedCard: Card? = null
 )
 
 class FavoritesViewModel(private val repository: CardRepository) : ViewModel() {
 
-    private val _selectedSubset = MutableStateFlow<String?>(null)
+    private val _selectedSubset = MutableStateFlow<String?>("Uncategorized")
     private val _uiState = MutableStateFlow(FavoritesUiState())
     val uiState: StateFlow<FavoritesUiState> = _uiState.asStateFlow()
 
@@ -28,36 +29,29 @@ class FavoritesViewModel(private val repository: CardRepository) : ViewModel() {
         loadData()
     }
 
-// Inside FavoritesViewModel.kt
-
     private fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             combine(
                 repository.getAllCards(),
-                _selectedSubset
-            ) { allCards, selectedSubset ->
-                // 1. Get all favorites
+                _selectedSubset,
+                repository.getAllSubsets()
+            ) { allCards, selectedSubset, manualSubsets ->
                 val favorites = allCards.filter { it.isFavorite }
+                
+                // Get subsets from cards + manually added ones from DB
+                val cardSubsets = favorites.mapNotNull { it.subset }.distinct()
+                val allSubsets = (cardSubsets + manualSubsets).distinct().sorted()
 
-                // 2. Build the list of available category tabs
-                // We start with "All" (represented by null in UI logic, but handled separately here)
-                // We find all unique non-null subsets existing in the DB
-                val existingSubsets = favorites.mapNotNull { it.subset }.distinct().sorted()
-
-                // 3. Determine which cards to show based on selection
                 val filteredCards = when (selectedSubset) {
-                    null -> favorites // "All Favorites" shows EVERYTHING now
-                    "Uncategorized" -> favorites.filter { it.subset == null } // Dedicated filter for unsorted
-                    else -> favorites.filter { it.subset == selectedSubset } // Specific category
+                    "Uncategorized" -> favorites.filter { it.subset == null }
+                    else -> favorites.filter { it.subset == selectedSubset }
                 }
 
                 FavoritesUiState(
                     cards = filteredCards,
-                    // We pass the categories to the UI.
-                    // We don't add "Uncategorized" here yet, we'll do it in the UI to keep it distinct.
-                    subsets = existingSubsets,
+                    subsets = allSubsets,
                     selectedSubset = selectedSubset,
                     isLoading = false,
                     selectedCard = _uiState.value.selectedCard
@@ -72,9 +66,41 @@ class FavoritesViewModel(private val repository: CardRepository) : ViewModel() {
         _selectedSubset.value = subset
     }
 
+    fun addSubset(name: String) {
+        if (name.isNotBlank() && name != "Uncategorized") {
+            viewModelScope.launch {
+                repository.insertSubset(name)
+                _selectedSubset.value = name
+            }
+        }
+    }
+
+    fun deleteSubset(name: String) {
+        viewModelScope.launch {
+            // 1. Remove from DB
+            repository.deleteSubset(name)
+            
+            // 2. Update all cards that were in this subset to be Uncategorized (null)
+            val allCards = repository.getAllCards().first()
+            allCards.filter { it.subset == name }.forEach { card ->
+                repository.updateCard(card.copy(subset = null))
+            }
+            
+            // 3. If the deleted subset was selected, go back to Uncategorized
+            if (_selectedSubset.value == name) {
+                _selectedSubset.value = "Uncategorized"
+            }
+        }
+    }
+
     fun toggleFavorite(card: Card) {
         viewModelScope.launch {
-            val updatedCard = card.copy(isFavorite = !card.isFavorite)
+            val isCurrentlyFavorite = card.isFavorite
+            val updatedCard = card.copy(
+                isFavorite = !isCurrentlyFavorite,
+                // If we're unfavoriting, we also clear the subset
+                subset = if (isCurrentlyFavorite) null else card.subset
+            )
             repository.updateCard(updatedCard)
         }
     }
@@ -83,6 +109,11 @@ class FavoritesViewModel(private val repository: CardRepository) : ViewModel() {
         viewModelScope.launch {
             val updatedCard = card.copy(subset = subset, isFavorite = true)
             repository.updateCard(updatedCard)
+            
+            // If it's a new subset (not Uncategorized), ensure it's in the persistent list
+            if (subset != null && subset != "Uncategorized") {
+                repository.insertSubset(subset)
+            }
         }
     }
 

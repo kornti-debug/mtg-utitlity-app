@@ -1,7 +1,10 @@
 package com.example.mtgutilityapp.ui.result
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -12,33 +15,46 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.mtgutilityapp.domain.model.Card
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultOverlay(
     card: Card,
     onSave: (Card) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    matchConfidence: Double = 1.0,
+    suggestedAlternatives: List<Card> = emptyList(),
+    availableSubsets: List<String> = emptyList()
 ) {
     var isFavorite by remember { mutableStateOf(card.isFavorite) }
     var selectedSubset by remember { mutableStateOf(card.subset) }
     var showSubsetMenu by remember { mutableStateOf(false) }
-    var showDetails by remember { mutableStateOf(false) }
-    val subsets = listOf("None", "Cheap", "Expensive", "Commander", "Modern")
+    var showDetails by remember { mutableStateOf(true) }
+    var showAlternatives by remember { mutableStateOf(false) }
+    var currentCard by remember { mutableStateOf(card) }
+
+    val context = LocalContext.current
+    val displaySubsets = listOf("Uncategorized") + availableSubsets
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -90,11 +106,106 @@ fun ResultOverlay(
                         }
                     }
 
+                    // Confidence Warning
+                    if (matchConfidence < 0.7 && suggestedAlternatives.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clickable { showAlternatives = !showAlternatives },
+                            color = Color(0xFFFBBF24).copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFBBF24),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Edition Uncertain (${(matchConfidence * 100).toInt()}% match)",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Tap to view ${suggestedAlternatives.size} alternatives",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Alternatives List
+                    if (showAlternatives && suggestedAlternatives.isNotEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            color = Color(0xFF0F172A).copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Other Editions:",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                suggestedAlternatives.take(5).forEach { alt ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp)
+                                            .clickable {
+                                                currentCard = alt
+                                                showAlternatives = false
+                                            },
+                                        color = if (alt.id == currentCard.id)
+                                            Color(0xFF38BDF8).copy(alpha = 0.2f)
+                                        else Color.Transparent,
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "${alt.setName} (${alt.setCode})",
+                                                color = Color.White,
+                                                fontSize = 14.sp,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            if (alt.id == currentCard.id) {
+                                                Text(
+                                                    text = "SELECTED",
+                                                    color = Color(0xFF38BDF8),
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Card Image
-                    card.imageUrl?.let { url ->
+                    currentCard.imageUrl?.let { url ->
                         AsyncImage(
                             model = url,
-                            contentDescription = card.name,
+                            contentDescription = currentCard.name,
                             modifier = Modifier
                                 .fillMaxWidth(0.65f)
                                 .aspectRatio(0.715f)
@@ -104,14 +215,14 @@ fun ResultOverlay(
                         Spacer(modifier = Modifier.height(20.dp))
                     }
 
-                    // Card Name + Favorite Icon Toggle
+                    // Card Name + Favorite
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = card.name,
+                            text = currentCard.name,
                             color = Color.White,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
@@ -121,14 +232,21 @@ fun ResultOverlay(
                             modifier = Modifier
                                 .size(36.dp)
                                 .background(
-                                    if (isFavorite) Color(0xFF00E5FF).copy(alpha = 0.4f) 
-                                    else Color(0xFF00E5FF).copy(alpha = 0.1f), 
+                                    if (isFavorite) Color(0xFF00E5FF).copy(alpha = 0.4f)
+                                    else Color(0xFF00E5FF).copy(alpha = 0.1f),
                                     CircleShape
                                 )
                                 .clip(CircleShape)
-                                .clickable { 
-                                    isFavorite = !isFavorite
-                                    onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                .pointerInput(isFavorite) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            isFavorite = !isFavorite
+                                            if (!isFavorite) {
+                                                selectedSubset = null
+                                            }
+                                            onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                        }
+                                    )
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -140,88 +258,158 @@ fun ResultOverlay(
                             )
                         }
                     }
-                    
-                    // Set & Mana Cost
+
+                    // Set Info
                     Text(
-                        text = "${card.setName ?: "Unknown Set"} • ${card.manaCost ?: ""}",
+                        text = "${currentCard.setName ?: "Unknown Set"} (${currentCard.setCode?.uppercase() ?: ""}) • ${currentCard.collectorNumber}",
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 16.sp
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (showDetails) {
-                        // Subset Selection
-                        if (isFavorite) {
-                            ExposedDropdownMenuBox(
+                    // Subset Dropdown
+                    if (isFavorite) {
+                        ExposedDropdownMenuBox(
+                            expanded = showSubsetMenu,
+                            onExpandedChange = { showSubsetMenu = !showSubsetMenu },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = selectedSubset ?: "Uncategorized",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubsetMenu) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = Color(0xFF38BDF8),
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
                                 expanded = showSubsetMenu,
-                                onExpandedChange = { showSubsetMenu = !showSubsetMenu },
-                                modifier = Modifier.fillMaxWidth()
+                                onDismissRequest = { showSubsetMenu = false },
+                                modifier = Modifier.background(Color(0xFF1E293B))
                             ) {
-                                OutlinedTextField(
-                                    value = selectedSubset ?: "Assign to Category",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Category", color = Color.White.copy(alpha = 0.6f)) },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showSubsetMenu) },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White,
-                                        focusedBorderColor = Color(0xFF38BDF8),
-                                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f)
-                                    ),
-                                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = showSubsetMenu,
-                                    onDismissRequest = { showSubsetMenu = false },
-                                    modifier = Modifier.background(Color(0xFF1E293B))
-                                ) {
-                                    subsets.forEach { subset ->
-                                        DropdownMenuItem(
-                                            text = { Text(subset, color = Color.White) },
-                                            onClick = {
-                                                selectedSubset = if (subset == "None") null else subset
-                                                showSubsetMenu = false
-                                                onSave(card.copy(isFavorite = isFavorite, subset = selectedSubset))
-                                            }
-                                        )
-                                    }
+                                displaySubsets.forEach { subset ->
+                                    DropdownMenuItem(
+                                        text = { Text(subset, color = Color.White) },
+                                        onClick = {
+                                            selectedSubset = if (subset == "Uncategorized") null else subset
+                                            showSubsetMenu = false
+                                            onSave(currentCard.copy(isFavorite = isFavorite, subset = selectedSubset))
+                                        }
+                                    )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    if (showDetails) {
+                        // --- Market Price Display ---
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            color = Color(0xFF38BDF8).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "Market Price (EUR)",
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontSize = 12.sp
+                                    )
+                                    Text(
+                                        text = if (currentCard.priceEur != null) "€${currentCard.priceEur}" else "N/A",
+                                        color = Color(0xFF38BDF8),
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
 
-                        // Info Boxes (Price & Type)
+                        // --- View Price History Button ---
+                        Button(
+                            onClick = {
+                                currentCard.cardmarketUrl?.let { url ->
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    context.startActivity(intent)
+                                }
+                            },
+                            enabled = currentCard.cardmarketUrl != null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 24.dp)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF0F172A),
+                                contentColor = Color(0xFF38BDF8),
+                                disabledContainerColor = Color(0xFF0F172A).copy(alpha = 0.5f),
+                                disabledContentColor = Color(0xFF38BDF8).copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (currentCard.cardmarketUrl != null) Color(0xFF38BDF8).copy(alpha = 0.5f)
+                                else Color.Gray.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Text("View Price History")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                        }
+
+                        // --- Info Grid ---
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             InfoBox(
-                                label = "Market Price",
-                                value = "$24.99",
-                                valueColor = Color(0xFF38BDF8),
+                                label = "Type",
+                                value = currentCard.typeLine.split("—").firstOrNull()?.trim() ?: "Card",
                                 modifier = Modifier.weight(1f)
                             )
                             InfoBox(
-                                label = "Type",
-                                value = card.typeLine.split("—").firstOrNull()?.trim() ?: card.typeLine,
+                                label = "Rarity",
+                                value = currentCard.rarity?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() } ?: "-",
+                                valueColor = getRarityColor(currentCard.rarity),
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Rarity & Artist
+                        // --- Artist & Finish ---
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             color = Color(0xFF0F172A).copy(alpha = 0.5f),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                DetailLine("Rarity", card.rarity?.replaceFirstChar { it.uppercase() } ?: "Common", Color(0xFFFBBF24))
+                                DetailLine("Artist", currentCard.artist ?: "Unknown", Color.White)
                                 Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
-                                DetailLine("Artist", card.artist ?: "Unknown Artist", Color.White)
+
+                                // Foil Status
+                                val isFoil = currentCard.finishes.contains("foil")
+                                val isEtched = currentCard.finishes.contains("etched")
+                                val finishText = when {
+                                    isEtched -> "Etched Foil"
+                                    isFoil -> "Foil"
+                                    else -> "Non-Foil"
+                                }
+                                DetailLine("Finish", finishText, if (isFoil || isEtched) Color(0xFFFFD700) else Color.White)
                             }
                         }
 
@@ -241,11 +429,22 @@ fun ResultOverlay(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(if (showDetails) "Hide Details" else "Show Details", color = Color.White)
                     }
-                    
+
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }
         }
+    }
+}
+
+@Composable
+fun getRarityColor(rarity: String?): Color {
+    return when (rarity?.lowercase()) {
+        "common" -> Color.White
+        "uncommon" -> Color(0xFFC0C0C0) // Silver
+        "rare" -> Color(0xFFFFD700) // Gold
+        "mythic" -> Color(0xFFFF8C00) // Orange/Red
+        else -> Color.White
     }
 }
 
@@ -261,7 +460,7 @@ fun InfoBox(label: String, value: String, valueColor: Color = Color.White, modif
             verticalArrangement = Arrangement.Center
         ) {
             Text(label, color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
-            Text(value, color = valueColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(value, color = valueColor, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         }
     }
 }

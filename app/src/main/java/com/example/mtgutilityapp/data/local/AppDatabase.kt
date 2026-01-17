@@ -5,10 +5,12 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.mtgutilityapp.data.local.entity.CardEntity
+import com.example.mtgutilityapp.data.local.entity.SubsetEntity
 
-@Database(entities = [CardEntity::class], version = 3, exportSchema = false)
+@Database(entities = [CardEntity::class, SubsetEntity::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun cardDao(): CardDao
+    abstract fun subsetDao(): SubsetDao
 
     companion object {
         @Volatile

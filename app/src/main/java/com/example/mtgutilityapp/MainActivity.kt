@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
         // Initialize database
         val database = AppDatabase.getDatabase(applicationContext)
         val cardDao = database.cardDao()
+        val subsetDao = database.subsetDao()
 
         // Initialize Retrofit
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
         val scryfallApi = retrofit.create(ScryfallApi::class.java)
 
         // Initialize repository
-        repository = CardRepository(cardDao, scryfallApi)
+        repository = CardRepository(cardDao, subsetDao, scryfallApi)
 
         setContent {
             MTGUtilityAppTheme {

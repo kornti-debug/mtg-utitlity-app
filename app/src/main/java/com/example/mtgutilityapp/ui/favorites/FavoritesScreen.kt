@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
@@ -39,6 +41,7 @@ fun FavoritesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showSubsetDialogForCard by remember { mutableStateOf<Card?>(null) }
+    var showAddSubsetDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
         Column(
@@ -49,7 +52,10 @@ fun FavoritesScreen(
             Spacer(modifier = Modifier.height(64.dp))
 
             // Header
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Icon(
                     Icons.Default.Favorite,
                     contentDescription = null,
@@ -66,54 +72,57 @@ fun FavoritesScreen(
             }
 
             // Subset Selector (Horizontal scroll for categories)
-            LazyRow(
+            Row(
                 modifier = Modifier.padding(vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. "All Favorites" Button (Default)
-                item {
-                    SubsetTab(
-                        name = "All Favorites",
-                        isSelected = uiState.selectedSubset == null,
-                        onClick = { viewModel.selectSubset(null) }
-                    )
+                LazyRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 1. "Uncategorized" Button (Default)
+                    item {
+                        SubsetTab(
+                            name = "Uncategorized",
+                            isSelected = uiState.selectedSubset == "Uncategorized",
+                            onClick = { viewModel.selectSubset("Uncategorized") },
+                            onDelete = null
+                        )
+                    }
+
+                    // 2. Dynamic Category Buttons
+                    items(uiState.subsets) { subset ->
+                        SubsetTab(
+                            name = subset,
+                            isSelected = uiState.selectedSubset == subset,
+                            onClick = { viewModel.selectSubset(subset) },
+                            onDelete = { viewModel.deleteSubset(subset) }
+                        )
+                    }
                 }
 
-                // 2. "Uncategorized" Button
-                // Only show this if there are actually cards without a category to avoid clutter
-                // OR always show it if you prefer.
-                item {
-                    SubsetTab(
-                        name = "Uncategorized",
-                        isSelected = uiState.selectedSubset == "Uncategorized",
-                        onClick = { viewModel.selectSubset("Uncategorized") }
-                    )
-                }
-
-                // 3. Dynamic Category Buttons (Commander, Modern, etc.)
-                items(uiState.subsets) { subset ->
-                    SubsetTab(
-                        name = subset,
-                        isSelected = uiState.selectedSubset == subset,
-                        onClick = { viewModel.selectSubset(subset) }
+                // 3. Add Category Button
+                IconButton(
+                    onClick = { showAddSubsetDialog = true },
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .size(36.dp)
+                        .background(Color(0xFF38BDF8).copy(alpha = 0.2f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Category",
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-// Update the helper text below the tabs to match
             Text(
-                text = when (uiState.selectedSubset) {
-                    null -> "Showing all favorites"
-                    "Uncategorized" -> "Cards not in any category"
-                    else -> "Category: ${uiState.selectedSubset}"
-                },
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 14.sp,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = if (uiState.selectedSubset == null) "Cards not in categories" else "Category: ${uiState.selectedSubset}",
+                text = if (uiState.selectedSubset == "Uncategorized")
+                    "Cards not in any category"
+                else "Category: ${uiState.selectedSubset}",
                 color = Color.White.copy(alpha = 0.5f),
                 fontSize = 14.sp,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -146,10 +155,22 @@ fun FavoritesScreen(
             }
         }
 
+        // Add Subset Dialog
+        if (showAddSubsetDialog) {
+            AddSubsetDialog(
+                onDismiss = { showAddSubsetDialog = false },
+                onAdd = { name ->
+                    viewModel.addSubset(name)
+                    showAddSubsetDialog = false
+                }
+            )
+        }
+
         // Subset Selection Dialog
         showSubsetDialogForCard?.let { card ->
             SubsetSelectionDialog(
                 currentSubset = card.subset,
+                availableSubsets = uiState.subsets,
                 onDismiss = { showSubsetDialogForCard = null },
                 onSubsetSelected = { subset ->
                     viewModel.updateCardSubset(card, subset)
@@ -171,38 +192,109 @@ fun FavoritesScreen(
         uiState.selectedCard?.let { card ->
             ResultOverlay(
                 card = card,
-                onSave = { updatedCard -> 
+                onSave = { updatedCard ->
                     viewModel.updateCardSubset(updatedCard, updatedCard.subset)
                     if (!updatedCard.isFavorite) {
                         viewModel.dismissCard()
                     }
                 },
-                onDismiss = { viewModel.dismissCard() }
+                onDismiss = { viewModel.dismissCard() },
+                availableSubsets = uiState.subsets // Pass dynamic subsets here
             )
         }
     }
 }
 
 @Composable
-fun SubsetTab(name: String, isSelected: Boolean, onClick: () -> Unit) {
+fun AddSubsetDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New Category", color = Color.White) },
+        containerColor = Color(0xFF1E293B),
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Category Name") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color(0xFF38BDF8)
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onAdd(name) }) {
+                Text("ADD", color = Color(0xFF38BDF8))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.White)
+            }
+        }
+    )
+}
+
+@Composable
+fun SubsetTab(
+    name: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)?
+) {
+    var showDeleteIcon by remember { mutableStateOf(false) }
+
     Surface(
-        modifier = Modifier.clickable { onClick() },
+        modifier = Modifier
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        if (showDeleteIcon) showDeleteIcon = false
+                        else onClick()
+                    },
+                    onLongPress = {
+                        if (onDelete != null) showDeleteIcon = true
+                    }
+                )
+            },
         color = if (isSelected) Color(0xFF38BDF8) else Color(0xFF1E293B),
         shape = RoundedCornerShape(20.dp)
     ) {
-        Text(
-            text = name,
-            color = if (isSelected) Color.Black else Color.White,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = name,
+                color = if (isSelected) Color.Black else Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (showDeleteIcon && onDelete != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Delete",
+                    tint = if (isSelected) Color.Black else Color.White,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable {
+                            onDelete()
+                            showDeleteIcon = false
+                        }
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun FavoriteCardItem(
-    card: Card, 
+    card: Card,
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
     onLongPressHeart: () -> Unit
@@ -256,12 +348,12 @@ fun FavoriteCardItem(
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        if (card.isFavorite) Color(0xFF00E5FF).copy(alpha = 0.2f) 
-                        else Color.Transparent, 
+                        if (card.isFavorite) Color(0xFF00E5FF).copy(alpha = 0.2f)
+                        else Color.Transparent,
                         CircleShape
                     )
                     .clip(CircleShape)
-                    .pointerInput(Unit) {
+                    .pointerInput(card) {
                         detectTapGestures(
                             onTap = { onFavoriteToggle() },
                             onLongPress = { onLongPressHeart() }
@@ -298,14 +390,16 @@ fun FavoriteCardItem(
     }
 }
 
+// Reuse the exact same dialog logic in Favorites Screen
 @Composable
 fun SubsetSelectionDialog(
     currentSubset: String?,
+    availableSubsets: List<String>,
     onDismiss: () -> Unit,
     onSubsetSelected: (String?) -> Unit
 ) {
     var newSubset by remember { mutableStateOf("") }
-    val predefinedSubsets = listOf("Cheap", "Expensive", "Commander", "Modern")
+    val isValidName = newSubset.isNotBlank() && newSubset.all { it.isLetterOrDigit() || it.isWhitespace() }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -313,48 +407,58 @@ fun SubsetSelectionDialog(
         containerColor = Color(0xFF1E293B),
         text = {
             Column {
-                Text("Select an existing category or create a new one:", color = Color.White.copy(alpha = 0.7f))
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Existing Subsets
-                predefinedSubsets.forEach { subset ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSubsetSelected(subset) }
-                            .padding(vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(subset, color = Color.White)
+                if (availableSubsets.isNotEmpty()) {
+                    Text("Select an existing category:", color = Color.White.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    availableSubsets.forEach { subset ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSubsetSelected(subset) }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF38BDF8))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(subset, color = Color.White)
+                        }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                } else {
+                    Text("No categories created yet.", color = Color.White.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Divider(modifier = Modifier.padding(vertical = 8.dp), color = Color.White.copy(alpha = 0.1f))
+                Text("Create new category:", color = Color.White.copy(alpha = 0.7f))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Custom Subset Input
                 OutlinedTextField(
                     value = newSubset,
                     onValueChange = { newSubset = it },
                     placeholder = { Text("New Category Name") },
                     modifier = Modifier.fillMaxWidth(),
+                    isError = newSubset.isNotEmpty() && !isValidName,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF38BDF8)
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        errorBorderColor = Color.Red
                     )
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (newSubset.isNotBlank()) onSubsetSelected(newSubset) }) {
-                Text("ADD NEW", color = Color(0xFF38BDF8))
+            TextButton(
+                onClick = { if (isValidName) onSubsetSelected(newSubset) },
+                enabled = isValidName
+            ) {
+                Text("CREATE AND ADD", color = if (isValidName) Color(0xFF38BDF8) else Color.Gray)
             }
         },
         dismissButton = {
             TextButton(onClick = { onSubsetSelected(null) }) {
-                Text("REMOVE CATEGORY", color = Color.Red.copy(alpha = 0.7f))
+                Text("Uncategorized", color = Color.Red.copy(alpha = 0.7f))
             }
         }
     )

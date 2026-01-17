@@ -1,6 +1,7 @@
 package com.example.mtgutilityapp.util
 
-import android.graphics.Rect
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
@@ -8,109 +9,87 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
+data class ScanResult(
+    val cardName: String,
+    val formattedFooter: String,
+    val rawFooter: String // Contains WHOLE OCR TEXT
+)
+
 object TextRecognitionHelper {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    suspend fun recognizeText(imageProxy: ImageProxy): String? = suspendCancellableCoroutine { continuation ->
-        val mediaImage = imageProxy.image
-        if (mediaImage != null) {
+    suspend fun recognizeText(imageProxy: ImageProxy): ScanResult? = suspendCancellableCoroutine { continuation ->
+        try {
+            val rawBitmap = imageProxy.toBitmap()
             val rotation = imageProxy.imageInfo.rotationDegrees
-            val image = InputImage.fromMediaImage(mediaImage, rotation)
+            imageProxy.close()
 
-            // Handle dimension rotation for logic calculations
-            var width = imageProxy.width
-            var height = imageProxy.height
-            if (rotation == 90 || rotation == 270) {
-                width = imageProxy.height
-                height = imageProxy.width
+            val uprightBitmap = if (rotation != 0) {
+                val matrix = Matrix()
+                matrix.postRotate(rotation.toFloat())
+                Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
+            } else {
+                rawBitmap
             }
 
-            recognizer.process(image)
+            val fullImageInput = InputImage.fromBitmap(uprightBitmap, 0)
+
+            recognizer.process(fullImageInput)
                 .addOnSuccessListener { visionText ->
-                    val cardName = extractCardName(visionText.textBlocks, width, height)
-                    continuation.resume(cardName)
+                    val name = extractNameFromFullScan(visionText, uprightBitmap.height)
+
+                    if (name.isBlank()) {
+                        continuation.resume(null)
+                        return@addOnSuccessListener
+                    }
+
+                    // Return EVERYTHING found on the card
+                    val fullRawText = visionText.text
+
+                    continuation.resume(ScanResult(
+                        cardName = name,
+                        formattedFooter = "",
+                        rawFooter = fullRawText
+                    ))
                 }
                 .addOnFailureListener {
                     continuation.resume(null)
                 }
-                .addOnCompleteListener {
-                    imageProxy.close()
-                }
-        } else {
-            imageProxy.close()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
             continuation.resume(null)
         }
     }
 
-    private fun extractCardName(
-        textBlocks: List<com.google.mlkit.vision.text.Text.TextBlock>,
-        imageWidth: Int,
+    private fun extractNameFromFullScan(
+        visionText: com.google.mlkit.vision.text.Text,
         imageHeight: Int
-    ): String? {
-        // We assume the user attempts to align the card with the center of the screen/preview.
-        // The standard Magic card is 63mm x 88mm.
-        // Due to preview cropping on different aspect ratios, the "centered" card
-        // usually starts somewhere around 20-30% down the image height and ends around 70-80%.
-        // The Card Name is in the top 10-15% of the card.
+    ): String {
+        val roiBottomLimit = imageHeight * 0.45
 
-        // Defines a "Region of Interest" (ROI) where we expect the card name to be.
-        // This allows for detection without a strictly rigid frame, but optimized for the overlay guide.
-
-        val roiTop = imageHeight * 0.15 // Start searching 15% down (skips top edge noise)
-        val roiBottom = imageHeight * 0.50 // Name should definitely be in the top half of the image
-
-        // Exclude edges
-        val roiLeft = imageWidth * 0.10
-        val roiRight = imageWidth * 0.90
-
-        // For right-side exclusion (mana cost), we'll be more specific per line
-
-        val candidateTexts = textBlocks
-            .flatMap { it.lines }
+        val nameCandidates = visionText.textBlocks.flatMap { it.lines }
             .filter { line ->
                 val box = line.boundingBox ?: return@filter false
-
-                // Check if line is within our generic ROI
-                val inRoi = box.top > roiTop &&
-                        box.bottom < roiBottom &&
-                        box.left > roiLeft &&
-                        box.right < roiRight
-
-                if (!inRoi) return@filter false
-
-                // Further filtering:
-                // 1. Text should not be too short
-                // 2. Text should not look like mana cost
-                // 3. To avoid mana symbols on the right, ensure the text starts on the left side of the card area
-                //    (Assuming the text line itself is the name, it usually starts left-aligned)
-
-                line.text.length > 2 && !isManaCost(line.text)
+                box.bottom < roiBottomLimit &&
+                        line.text.length > 2 &&
+                        !isManaCost(line.text)
             }
             .sortedBy { it.boundingBox?.top ?: Int.MAX_VALUE }
 
-        // Get the first valid line as the card name
-        val cardName = candidateTexts.firstOrNull()?.text?.trim()
-
-        return cardName?.let { cleanCardName(it) }
+        val rawName = nameCandidates.firstOrNull()?.text?.trim() ?: ""
+        return cleanCardName(rawName)
     }
 
     private fun isManaCost(text: String): Boolean {
-        // Check if text looks like mana cost symbols
-        // Mana costs are typically: numbers, single letters (W, U, B, R, G), or symbols like {1}, {W}, etc.
-        val manaCostPattern = Regex("^[0-9WUBRGCXYZ{},]+$")
-        return text.matches(manaCostPattern) || text.length <= 2
+        val manaCostPattern = Regex("^[0-9WUBRGCXYZ{},/]+$")
+        return text.matches(manaCostPattern) || text.length <= 1
     }
 
     private fun cleanCardName(name: String): String {
         var cleaned = name
-
-        // Remove trailing mana symbols like "1", "2G", "{W}{U}", etc.
         cleaned = cleaned.replace(Regex("[0-9WUBRGCXYZ{},]+$"), "").trim()
 
-        // Remove common OCR artifacts or "Creature - ..." type lines if we accidentally caught the type line
-        // But type lines are usually lower.
-
-        // Remove text after a comma if it looks like mana cost (e.g. "Name, 3G")
         if (cleaned.contains(",")) {
             val parts = cleaned.split(",")
             if (parts.size >= 2) {
@@ -121,6 +100,12 @@ object TextRecognitionHelper {
             }
         }
 
-        return cleaned.trim()
+        cleaned = cleaned
+            .replace("\"", "")
+            .replace("'", "'")
+            .replace("  ", " ")
+            .trim()
+
+        return cleaned
     }
 }
